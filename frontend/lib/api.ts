@@ -73,7 +73,7 @@ export interface Post {
   createdAt: string;
   author?: {
     id: string;
-    athleteProfile?: { name: string; sport: string; profilePictureUrl?: string };
+    athleteProfile?: { name: string; sport: string; profilePictureUrl?: string; schoolTeam?: string };
     coachProfile?: { name: string; organization?: string };
     brandProfile?: { name: string; organizationType?: string };
   };
@@ -120,6 +120,7 @@ export interface Offer {
   status: 'PENDING' | 'ACCEPTED' | 'DECLINED';
   brand?: BrandProfile;
   athlete?: AthleteProfile;
+  deal?: { status: string; completedAt?: string };
 }
 
 export interface BrandProfile {
@@ -155,9 +156,9 @@ const apiRequest = async <T>(
   options: RequestInit = {}
 ): Promise<T> => {
   const token = getToken();
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...options.headers,
+    ...(options.headers as Record<string, string>),
   };
 
   if (token) {

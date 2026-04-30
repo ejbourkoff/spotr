@@ -61,7 +61,9 @@
       "Bash(open http://localhost:3000)",
       "Bash(echo \"started pid $!\")",
       "Skill(setup-deploy)",
-      "Skill(setup-deploy:*)"
+      "Skill(setup-deploy:*)",
+      "Bash(git remote *)",
+      "Bash(git push *)"
     ]
   }
 }
