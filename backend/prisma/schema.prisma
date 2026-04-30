@@ -1,0 +1,343 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ATHLETE
+  COACH
+  BRAND
+  FAN
+}
+
+enum SchoolLevel {
+  D1
+  D2
+  D3
+  NAIA
+  JUCO
+  OTHER
+}
+
+enum OfferStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum DealStatus {
+  ACTIVE
+  COMPLETED
+}
+
+enum ListType {
+  COACH
+  BRAND
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String // hashed
+  role          UserRole
+  phone         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  athleteProfile AthleteProfile?
+  coachProfile   CoachProfile?
+  brandProfile   BrandProfile?
+  
+  // Social media
+  posts          Post[]
+  likes          Like[]
+  comments       Comment[]
+  saves          Save[]
+  followers      Follow[] @relation("Follower")
+  following      Follow[] @relation("Following")
+  
+  sentMessages   Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+
+  @@map("users")
+}
+
+model AthleteProfile {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  slug          String?   @unique
+  name          String
+  sport         String // e.g., "Basketball", "Football"
+  position      String?
+  schoolTeam    String?
+  classYear     String? // e.g., "2024", "Freshman"
+  location      String?
+  state         String? // ISO state code e.g. "NC"
+  height        String? // e.g., "6'2\""
+  weight        Int? // in pounds
+  bio           String? @db.Text
+  hudlUrl       String?
+  openToNIL     Boolean   @default(false)
+  openToSemiProPro Boolean @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stats         StatLine[]
+  highlights    Highlight[]
+  receivedOffers Offer[]  @relation("AthleteOffers")
+  deals         Deal[]
+  savedListEntries SavedListEntry[]
+  shortLinks    AthleteShortLink[]
+
+  @@map("athlete_profiles")
+}
+
+model CoachProfile {
+  id            String      @id @default(cuid())
+  userId        String      @unique
+  name          String
+  organization  String?
+  title         String?
+  location      String?
+  school        String?
+  sport         String[]
+  schoolLevel   SchoolLevel?
+  statePrefs    String[]
+  verified      Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lists         SavedList[] @relation("CoachLists")
+
+  @@map("coach_profiles")
+}
+
+model BrandProfile {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  name          String
+  organizationType String? // e.g., "Collective", "Local Business", "Brand"
+  location      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lists         SavedList[] @relation("BrandLists")
+  offers        Offer[]
+
+  @@map("brand_profiles")
+}
+
+model StatLine {
+  id            String    @id @default(cuid())
+  athleteId     String
+  season        String // e.g., "2023-24"
+  statType      String // e.g., "PPG", "APG", "RPG", "Yards", "Touchdowns"
+  value         Float
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  athlete       AthleteProfile @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@map("stat_lines")
+}
+
+model Highlight {
+  id            String    @id @default(cuid())
+  athleteId     String
+  url           String
+  title         String?
+  description   String? @db.Text
+  tags          String? // comma-separated or JSON
+  opponent      String?
+  gameDate      DateTime?
+  season        String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  athlete       AthleteProfile @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@map("highlights")
+}
+
+// Social Media: Post
+model Post {
+  id            String    @id @default(cuid())
+  authorId      String
+  text          String    @db.Text
+  mediaUrl      String? // TODO: In production, use proper file storage (S3, Cloudinary, etc.)
+  mediaType     String? // "photo", "video", "reel"
+  isReel        Boolean   @default(false) // Short-form vertical video
+  thumbnailUrl  String? // For video previews
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  author        User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  likes         Like[]
+  comments      Comment[]
+  saves         Save[]
+
+  @@map("posts")
+}
+
+// Social Media: Like
+model Like {
+  id            String    @id @default(cuid())
+  userId        String
+  postId        String
+  createdAt     DateTime  @default(now())
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post          Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@map("likes")
+}
+
+// Social Media: Comment
+model Comment {
+  id            String    @id @default(cuid())
+  userId        String
+  postId        String
+  text          String    @db.Text
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post          Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@map("comments")
+}
+
+// Social Media: Follow
+model Follow {
+  id            String    @id @default(cuid())
+  followerId    String
+  followingId   String
+  createdAt     DateTime  @default(now())
+
+  follower      User      @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following     User      @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@map("follows")
+}
+
+// Social Media: Save (bookmark posts)
+model Save {
+  id            String    @id @default(cuid())
+  userId        String
+  postId        String
+  createdAt     DateTime  @default(now())
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post          Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@map("saves")
+}
+
+model SavedList {
+  id            String    @id @default(cuid())
+  name          String
+  type          ListType
+  coachId       String?
+  brandId       String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  coach         CoachProfile? @relation("CoachLists", fields: [coachId], references: [id], onDelete: Cascade)
+  brand         BrandProfile? @relation("BrandLists", fields: [brandId], references: [id], onDelete: Cascade)
+  entries       SavedListEntry[]
+
+  @@map("saved_lists")
+}
+
+model SavedListEntry {
+  id            String    @id @default(cuid())
+  listId        String
+  athleteId     String
+  createdAt     DateTime  @default(now())
+
+  list          SavedList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  athlete       AthleteProfile @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, athleteId])
+  @@map("saved_list_entries")
+}
+
+model Offer {
+  id                String      @id @default(cuid())
+  brandId           String
+  athleteId         String
+  deliverables      String      @db.Text
+  campaignStartDate DateTime
+  campaignEndDate   DateTime
+  compensationAmount Float
+  notes             String?     @db.Text
+  status            OfferStatus @default(PENDING)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  brand             BrandProfile @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  athlete           AthleteProfile @relation("AthleteOffers", fields: [athleteId], references: [id], onDelete: Cascade)
+  deal              Deal?
+
+  @@map("offers")
+}
+
+model Deal {
+  id            String      @id @default(cuid())
+  offerId       String      @unique
+  athleteId     String
+  status        DealStatus  @default(ACTIVE)
+  completedAt   DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  offer         Offer       @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  athlete       AthleteProfile @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@map("deals")
+}
+
+model Message {
+  id            String    @id @default(cuid())
+  senderId      String
+  receiverId    String
+  subject       String
+  body          String    @db.Text
+  readAt        DateTime?
+  createdAt     DateTime  @default(now())
+
+  sender        User      @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver      User      @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model FeatureFlag {
+  name    String  @id
+  enabled Boolean @default(false)
+
+  @@map("feature_flags")
+}
+
+model AthleteShortLink {
+  id        String         @id @default(cuid())
+  code      String         @unique
+  athleteId String
+  athlete   AthleteProfile @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  createdAt DateTime       @default(now())
+
+  @@map("athlete_short_links")
+}

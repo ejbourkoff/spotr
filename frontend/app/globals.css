@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand: #00E87A;
+  --spotr-black: #0D0D0F;
+  --spotr-white: #F4F4F0;
+}
+
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+
+body {
+  background: var(--spotr-black);
+  color: var(--spotr-white);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Authenticated desktop: sidebar pushes content right */
+@media (min-width: 768px) {
+  body:has(aside) #app-shell {
+    margin-left: 240px;
+  }
+}
+
+/* Authenticated mobile: pad top for top bar + pad bottom for bottom nav */
+@media (max-width: 767px) {
+  body:has(aside) #app-shell {
+    padding-top: 48px;
+    padding-bottom: 64px;
+  }
+}
+
+/* Unauthenticated pages: top margin for sticky header */
+body:not(:has(aside)) #app-shell {
+  margin-top: 56px;
+}

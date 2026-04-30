@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+.npm
+
+# Build outputs
+frontend/.next/
+frontend/out/
+backend/dist/
+
+# Environment
+.env
+.env.local
+.env.*.local
+*.env
+
+# Uploads (user-generated files — store on object storage in prod)
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logfile
+
+# Editor
+.vscode/
+.idea/
+
+# Prisma
+backend/prisma/migrations/*.sql
