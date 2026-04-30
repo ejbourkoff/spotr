@@ -59,8 +59,8 @@ function getNavItems(role: User['role']): NavItem[] {
   if (role === 'ATHLETE') {
     return [
       { href: '/feed', label: 'Home', icon: <HomeIcon /> },
+      { href: '/reels', label: 'Reels', icon: <ReelIcon />, match: (p) => p.startsWith('/reels') },
       { href: '/discover', label: 'Explore', icon: <DiscoverIcon /> },
-      { href: '/reels', label: 'Reels', icon: <ReelIcon /> },
       { href: '/messages', label: 'Messages', icon: <MessageIcon />, match: (p) => p.startsWith('/messages') },
       { href: '/athlete/profile', label: 'Profile', icon: <ProfileIcon />, match: (p) => p.startsWith('/athlete/profile') },
     ]
@@ -68,15 +68,15 @@ function getNavItems(role: User['role']): NavItem[] {
   if (role === 'COACH') {
     return [
       { href: '/feed', label: 'Home', icon: <HomeIcon /> },
+      { href: '/reels', label: 'Reels', icon: <ReelIcon />, match: (p) => p.startsWith('/reels') },
       { href: '/discover', label: 'Explore', icon: <DiscoverIcon /> },
-      { href: '/reels', label: 'Reels', icon: <ReelIcon /> },
-      { href: '/coach/discover', label: 'Athletes', icon: <ProfileIcon />, match: (p) => p.startsWith('/coach/discover') || p.startsWith('/coach/onboarding') },
       { href: '/messages', label: 'Messages', icon: <MessageIcon />, match: (p) => p.startsWith('/messages') },
+      { href: '/coach/discover', label: 'Athletes', icon: <ProfileIcon />, match: (p) => p.startsWith('/coach/discover') || p.startsWith('/coach/onboarding') },
     ]
   }
   return [
     { href: '/feed', label: 'Home', icon: <HomeIcon /> },
-    { href: '/discover', label: 'Explore', icon: <DiscoverIcon /> },
+    { href: '/reels', label: 'Reels', icon: <ReelIcon />, match: (p) => p.startsWith('/reels') },
     { href: '/brand/search', label: 'NIL Search', icon: <DiscoverIcon /> },
     { href: '/brand/offers', label: 'Offers', icon: <OfferIcon /> },
     { href: '/messages', label: 'Messages', icon: <MessageIcon />, match: (p) => p.startsWith('/messages') },
@@ -125,7 +125,9 @@ export default function Navigation() {
     return (
       <header className="fixed top-0 inset-x-0 z-50 bg-gray-950/90 backdrop-blur border-b border-gray-800">
         <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
-          <Link href="/" className="text-xl font-black tracking-tight text-white">SPOTR</Link>
+          <Link href="/" className="text-xl font-black tracking-tight text-white">
+            <span className="text-brand">S</span>POT<span className="text-brand">R</span>
+          </Link>
           <div className="flex items-center gap-2">
             <Link href="/auth/login" className="text-sm text-gray-400 hover:text-white transition-colors px-3 py-1.5">
               Log in
@@ -145,20 +147,22 @@ export default function Navigation() {
     <>
       {/* Mobile top bar */}
       <header className="md:hidden fixed top-0 inset-x-0 z-50 bg-gray-950/95 backdrop-blur border-b border-gray-800 h-12 flex items-center justify-between px-4">
-        <Link href="/feed" className="text-xl font-black tracking-tight text-white">SPOTR</Link>
-        {user.role === 'ATHLETE' && (
-          <Link href="/athlete/inbox" className="text-gray-400 active:text-white p-1">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
-            </svg>
-          </Link>
-        )}
+        <Link href="/feed" className="text-xl font-black tracking-tight text-white">
+          <span className="text-brand">S</span>POT<span className="text-brand">R</span>
+        </Link>
+        <Link href="/post/create" className="w-8 h-8 bg-brand rounded-lg flex items-center justify-center">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0D0D0F" strokeWidth={2.5}>
+            <path strokeLinecap="round" d="M12 5v14M5 12h14" />
+          </svg>
+        </Link>
       </header>
 
       {/* Desktop sidebar */}
       <aside className="hidden md:flex fixed top-0 left-0 h-full w-60 bg-gray-950 border-r border-gray-800 flex-col z-50">
         <div className="px-6 py-5 border-b border-gray-800">
-          <Link href="/feed" className="text-2xl font-black tracking-tight text-white">SPOTR</Link>
+          <Link href="/feed" className="text-2xl font-black tracking-tight text-white">
+            <span className="text-brand">S</span>POT<span className="text-brand">R</span>
+          </Link>
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
@@ -216,28 +220,7 @@ export default function Navigation() {
 
       {/* Mobile bottom nav */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 bg-gray-950 border-t border-gray-800 flex">
-        {navItems.slice(0, 2).map((item) => {
-          const active = item.match ? item.match(pathname || '') : pathname === item.href
-          return (
-            <Link key={item.href} href={item.href}
-              className={`flex-1 flex flex-col items-center justify-center py-3 gap-1 text-xs font-medium transition-colors ${active ? 'text-brand' : 'text-gray-500'}`}
-            >
-              <span className={active ? 'text-brand' : 'text-gray-500'}>{item.icon}</span>
-              <span className="text-[10px]">{item.label}</span>
-            </Link>
-          )
-        })}
-        {/* Center create button */}
-        <Link href="/post/create"
-          className="flex-1 flex flex-col items-center justify-center py-3 gap-1"
-        >
-          <span className="w-9 h-9 rounded-xl bg-brand flex items-center justify-center">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0D0D0F" strokeWidth={2.5}>
-              <path strokeLinecap="round" d="M12 5v14M5 12h14" />
-            </svg>
-          </span>
-        </Link>
-        {navItems.slice(2, 4).map((item) => {
+        {navItems.map((item) => {
           const active = item.match ? item.match(pathname || '') : pathname === item.href
           return (
             <Link key={item.href} href={item.href}
