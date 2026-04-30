@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { postApi, likeApi, commentApi, saveApi, Post, Comment } from '@/lib/api'
+import { postApi, likeApi, commentApi, saveApi, messageApi, Post, Comment } from '@/lib/api'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
 
@@ -249,12 +249,122 @@ function Composer({ onPost }: { onPost: (post: Post) => void }) {
   )
 }
 
+// ── Share sheet ───────────────────────────────────────────────────────────────
+function ShareSheet({ post, onClose }: { post: Post; onClose: () => void }) {
+  const [query, setQuery] = useState('')
+  const [users, setUsers] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [sentTo, setSentTo] = useState<Set<string>>(new Set())
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => { setTimeout(() => inputRef.current?.focus(), 100) }, [])
+
+  useEffect(() => {
+    setLoading(true)
+    const timer = setTimeout(async () => {
+      try {
+        const res = await messageApi.searchUsers(query)
+        setUsers(res.users)
+      } catch {}
+      setLoading(false)
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [query])
+
+  const handleSend = async (userId: string) => {
+    if (sentTo.has(userId)) return
+    const preview = post.text ? post.text.slice(0, 80) : 'a post'
+    try {
+      await messageApi.sendMessage(userId, 'Shared a post', `Check this out: "${preview}"`)
+      setSentTo((prev) => new Set([...prev, userId]))
+    } catch {}
+  }
+
+  const userName = (u: any) =>
+    u.athleteProfile?.name || u.coachProfile?.name || u.brandProfile?.name || u.email
+
+  const userSub = (u: any) =>
+    u.athleteProfile?.sport || u.coachProfile?.organization || u.brandProfile?.organizationType || ''
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div
+        className="relative w-full bg-gray-950 rounded-t-2xl border-t border-gray-800 max-h-[75vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Handle */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 rounded-full bg-gray-700" />
+        </div>
+
+        <div className="px-4 pb-2">
+          <p className="text-white text-sm font-bold mb-3">Send to someone</p>
+          <div className="flex items-center gap-2 bg-gray-900 border border-gray-800 rounded-xl px-3 py-2">
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="text-gray-500 flex-shrink-0">
+              <circle cx="11" cy="11" r="8" /><path strokeLinecap="round" d="M21 21l-4.35-4.35" />
+            </svg>
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by name…"
+              className="flex-1 bg-transparent text-sm text-white placeholder-gray-600 outline-none"
+            />
+          </div>
+        </div>
+
+        <div className="overflow-y-auto flex-1 pb-8">
+          {loading && (
+            <div className="flex justify-center py-6">
+              <div className="w-5 h-5 border-2 border-[#00E87A] border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+          {!loading && users.length === 0 && query.length > 0 && (
+            <p className="text-center text-gray-600 text-sm py-8">No users found</p>
+          )}
+          {!loading && users.length === 0 && query.length === 0 && (
+            <p className="text-center text-gray-700 text-sm py-8">Type a name to search</p>
+          )}
+          {users.map((u) => {
+            const name = userName(u)
+            const sub = userSub(u)
+            const sent = sentTo.has(u.id)
+            return (
+              <div key={u.id} className="flex items-center gap-3 px-4 py-3 border-b border-gray-900">
+                <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${avatarGradient(name)} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>
+                  {name.slice(0, 2).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-white truncate">{name}</p>
+                  {sub && <p className="text-xs text-gray-500 truncate">{sub}</p>}
+                </div>
+                <button
+                  onClick={() => handleSend(u.id)}
+                  className={`flex-shrink-0 text-xs font-bold px-4 py-1.5 rounded-full transition-all ${
+                    sent
+                      ? 'bg-[#00E87A]/20 text-[#00E87A] border border-[#00E87A]/30'
+                      : 'bg-[#00E87A] text-black'
+                  }`}
+                >
+                  {sent ? 'Sent' : 'Send'}
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Post card ─────────────────────────────────────────────────────────────────
-function PostCard({ post, onLike, onSave, onComment }: {
+function PostCard({ post, onLike, onSave, onComment, onShare }: {
   post: Post
   onLike: (id: string, liked: boolean) => void
   onSave: (id: string, saved: boolean) => void
   onComment: (id: string, text: string) => void
+  onShare: (post: Post) => void
 }) {
   const [showComments, setShowComments] = useState(false)
   const [commentText, setCommentText] = useState('')
@@ -343,7 +453,7 @@ function PostCard({ post, onLike, onSave, onComment }: {
           {commentCount > 0 && <span className="text-sm font-medium">{commentCount}</span>}
         </button>
 
-        <button className="text-gray-500">
+        <button onClick={() => onShare(post)} className="text-gray-500 hover:text-[#00E87A] transition-colors">
           <SendIcon />
         </button>
 
@@ -424,6 +534,7 @@ export default function FeedPage() {
   const [reels, setReels] = useState<Post[]>([])
   const [stories, setStories] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
+  const [sharePost, setSharePost] = useState<Post | null>(null)
 
   const loadFeed = useCallback(async () => {
     try {
@@ -465,6 +576,8 @@ export default function FeedPage() {
     catch (err: any) { alert(err.message) }
   }
 
+  const handleShare = (post: Post) => setSharePost(post)
+
   if (loading) {
     return (
       <main className="min-h-screen bg-gray-950 flex items-center justify-center">
@@ -475,6 +588,7 @@ export default function FeedPage() {
 
   return (
     <main className="bg-gray-950">
+      {sharePost && <ShareSheet post={sharePost} onClose={() => setSharePost(null)} />}
       <div className="max-w-[480px] mx-auto">
         <StoriesRow stories={stories} />
         <Composer onPost={(post) => setPosts((prev) => [post, ...prev])} />
@@ -487,7 +601,7 @@ export default function FeedPage() {
         )}
 
         {posts.map((post) => (
-          <PostCard key={post.id} post={post} onLike={handleLike} onSave={handleSave} onComment={handleComment} />
+          <PostCard key={post.id} post={post} onLike={handleLike} onSave={handleSave} onComment={handleComment} onShare={handleShare} />
         ))}
       </div>
 

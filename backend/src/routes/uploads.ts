@@ -1,32 +1,43 @@
 import express, { Response } from 'express'
 import multer from 'multer'
-import path from 'path'
+import { v2 as cloudinary } from 'cloudinary'
 import { authenticate, AuthRequest } from '../middleware/auth'
 
 const router = express.Router()
 
-const storage = multer.diskStorage({
-  destination: path.join(process.cwd(), 'uploads'),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase()
-    cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`)
-  },
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 })
 
+// Buffer storage so we can pipe to Cloudinary without writing to disk
+const storage = multer.memoryStorage()
 const upload = multer({
   storage,
-  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
   fileFilter: (_req, file, cb) => {
-    const allowed = /\.(jpg|jpeg|png|gif|webp|mp4|mov|webm)$/i
+    const allowed = /\.(jpg|jpeg|png|gif|webp)$/i
     cb(null, allowed.test(file.originalname))
   },
 })
 
-router.post('/', authenticate, upload.single('file'), (req: AuthRequest, res: Response) => {
+router.post('/', authenticate, upload.single('file'), async (req: AuthRequest, res: Response) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' })
-  const isVideo = /\.(mp4|mov|webm)$/i.test(req.file.originalname)
-  const url = `${process.env.API_URL || 'http://localhost:3001'}/uploads/${req.file.filename}`
-  res.json({ url, mediaType: isVideo ? 'video' : 'photo' })
+
+  try {
+    const result = await new Promise<any>((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'spotr', resource_type: 'image', quality: 'auto', fetch_format: 'auto' },
+        (err, result) => (err ? reject(err) : resolve(result))
+      )
+      stream.end(req.file!.buffer)
+    })
+    res.json({ url: result.secure_url, mediaType: 'photo' })
+  } catch (err) {
+    console.error('Cloudinary upload error:', err)
+    res.status(500).json({ error: 'Upload failed' })
+  }
 })
 
 export default router

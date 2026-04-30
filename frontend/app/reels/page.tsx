@@ -2,9 +2,72 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { postApi, athleteApi, likeApi, saveApi, Post } from '@/lib/api'
+import { postApi, athleteApi, likeApi, saveApi, messageApi, Post } from '@/lib/api'
 import dynamic from 'next/dynamic'
 const MuxPlayer = dynamic(() => import('@mux/mux-player-react'), { ssr: false })
+
+// ── Share sheet (inline) ──────────────────────────────────────────────────────
+const SHARE_AVATAR_GRADIENTS = [
+  'from-blue-500 to-purple-600', 'from-emerald-500 to-cyan-600',
+  'from-orange-500 to-red-600', 'from-pink-500 to-rose-600',
+]
+function shareAvatarGradient(name: string) {
+  let h = 0; for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0
+  return SHARE_AVATAR_GRADIENTS[h % SHARE_AVATAR_GRADIENTS.length]
+}
+function ReelShareSheet({ reel, onClose }: { reel: Post; onClose: () => void }) {
+  const [query, setQuery] = useState('')
+  const [users, setUsers] = useState<any[]>([])
+  const [loadingUsers, setLoadingUsers] = useState(false)
+  const [sentTo, setSentTo] = useState<Set<string>>(new Set())
+  const inputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => { setTimeout(() => inputRef.current?.focus(), 100) }, [])
+  useEffect(() => {
+    setLoadingUsers(true)
+    const t = setTimeout(async () => {
+      try { const r = await messageApi.searchUsers(query); setUsers(r.users) } catch {}
+      setLoadingUsers(false)
+    }, 250)
+    return () => clearTimeout(t)
+  }, [query])
+  const handleSend = async (userId: string) => {
+    if (sentTo.has(userId)) return
+    const preview = reel.text ? reel.text.slice(0, 80) : 'a reel'
+    try { await messageApi.sendMessage(userId, 'Shared a reel', `Check this out: "${preview}"`); setSentTo(p => new Set([...p, userId])) } catch {}
+  }
+  const uName = (u: any) => u.athleteProfile?.name || u.coachProfile?.name || u.brandProfile?.name || u.email
+  const uSub = (u: any) => u.athleteProfile?.sport || u.coachProfile?.organization || u.brandProfile?.organizationType || ''
+  return (
+    <div className="fixed inset-0 z-50 flex items-end" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div className="relative w-full bg-gray-950 rounded-t-2xl border-t border-gray-800 max-h-[75vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-center pt-3 pb-1"><div className="w-10 h-1 rounded-full bg-gray-700" /></div>
+        <div className="px-4 pb-2">
+          <p className="text-white text-sm font-bold mb-3">Send to someone</p>
+          <div className="flex items-center gap-2 bg-gray-900 border border-gray-800 rounded-xl px-3 py-2">
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="text-gray-500 flex-shrink-0"><circle cx="11" cy="11" r="8" /><path strokeLinecap="round" d="M21 21l-4.35-4.35" /></svg>
+            <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="Search by name…" className="flex-1 bg-transparent text-sm text-white placeholder-gray-600 outline-none" />
+          </div>
+        </div>
+        <div className="overflow-y-auto flex-1 pb-8">
+          {loadingUsers && <div className="flex justify-center py-6"><div className="w-5 h-5 border-2 border-[#00E87A] border-t-transparent rounded-full animate-spin" /></div>}
+          {!loadingUsers && users.length === 0 && query.length > 0 && <p className="text-center text-gray-600 text-sm py-8">No users found</p>}
+          {!loadingUsers && users.length === 0 && query.length === 0 && <p className="text-center text-gray-700 text-sm py-8">Type a name to search</p>}
+          {users.map(u => {
+            const name = uName(u); const sub = uSub(u); const sent = sentTo.has(u.id)
+            return (
+              <div key={u.id} className="flex items-center gap-3 px-4 py-3 border-b border-gray-900">
+                <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${shareAvatarGradient(name)} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>{name.slice(0,2).toUpperCase()}</div>
+                <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-white truncate">{name}</p>{sub && <p className="text-xs text-gray-500 truncate">{sub}</p>}</div>
+                <button onClick={() => handleSend(u.id)} className={`flex-shrink-0 text-xs font-bold px-4 py-1.5 rounded-full transition-all ${sent ? 'bg-[#00E87A]/20 text-[#00E87A] border border-[#00E87A]/30' : 'bg-[#00E87A] text-black'}`}>{sent ? 'Sent' : 'Send'}</button>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 const BRAND_GREEN = '#00E87A'
 
@@ -58,6 +121,7 @@ export default function ReelsPage() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('Trending')
   const [viewerSport, setViewerSport] = useState<string | null>(null)
+  const [shareReel, setShareReel] = useState<Post | null>(null)
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({})
   const touchStartY = useRef<number | null>(null)
 
@@ -177,6 +241,7 @@ export default function ReelsPage() {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
+      {shareReel && <ReelShareSheet reel={shareReel} onClose={() => setShareReel(null)} />}
       {/* Full-screen video stack */}
       {displayReels.map((reel, index) => (
         <div
@@ -303,13 +368,13 @@ export default function ReelsPage() {
           </button>
 
           {/* Share */}
-          <button className="flex flex-col items-center gap-1">
+          <button onClick={() => setShareReel(currentReel)} className="flex flex-col items-center gap-1">
             <div className="w-11 h-11 rounded-full flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)' }}>
               <svg width="18" height="18" fill="none" stroke="white" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
               </svg>
             </div>
-            <span className="text-white text-[11px] font-bold">Share</span>
+            <span className="text-white text-[11px] font-bold">Send</span>
           </button>
         </div>
       )}

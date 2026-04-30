@@ -353,6 +353,27 @@ export const followApi = {
   },
 };
 
+// Message API
+export const messageApi = {
+  sendMessage: async (receiverId: string, subject: string, body: string): Promise<any> => {
+    return apiRequest('/messages', {
+      method: 'POST',
+      body: JSON.stringify({ receiverId, subject, body }),
+    });
+  },
+  searchUsers: async (q: string): Promise<{ users: Array<{
+    id: string;
+    email: string;
+    iFollow: boolean;
+    theyFollow: boolean;
+    athleteProfile?: { name: string; sport: string };
+    coachProfile?: { name: string; organization?: string };
+    brandProfile?: { name: string; organizationType?: string };
+  }> }> => {
+    return apiRequest(`/users/search?q=${encodeURIComponent(q)}`);
+  },
+};
+
 // Offer API
 export const offerApi = {
   getOffers: async (): Promise<{ offers: Offer[] }> => {
