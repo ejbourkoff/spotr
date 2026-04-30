@@ -26,6 +26,7 @@ export interface AthleteProfile {
   weight?: number;
   bio?: string;
   hudlUrl?: string;
+  avatarUrl?: string;
   openToNIL: boolean;
   openToSemiProPro: boolean;
   stats?: StatLine[];
