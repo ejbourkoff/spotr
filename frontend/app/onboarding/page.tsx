@@ -329,12 +329,12 @@ export default function OnboardingPage() {
   const currentAnswer = answers[enrichedStep.id]
 
   const canContinue = (() => {
-    if (!currentAnswer) return false
-    if (enrichedStep.type === 'multi') return Array.isArray(currentAnswer) && currentAnswer.length > 0
     if (enrichedStep.type === 'text') {
       const required = enrichedStep.fields?.filter((_f, i) => i === 0) ?? []
       return required.every(f => (answers[f.key] as string)?.trim())
     }
+    if (!currentAnswer) return false
+    if (enrichedStep.type === 'multi') return Array.isArray(currentAnswer) && currentAnswer.length > 0
     return !!currentAnswer
   })()
 
