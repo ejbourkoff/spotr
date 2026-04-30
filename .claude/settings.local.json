@@ -70,7 +70,28 @@
       "Bash(git commit *)",
       "Bash(curl -s -X POST https://spotr-production.up.railway.app/api/auth/signup -H 'Content-Type: application/json' -d '{\"email\":\"testuser99@test.com\",\"password\":\"password123\",\"role\":\"ATHLETE\"}')",
       "Bash(railway status *)",
-      "Bash(railway logs *)"
+      "Bash(railway logs *)",
+      "Bash(curl -sf https://spotr-production.up.railway.app/api/health)",
+      "Bash(curl -s -X POST https://spotr-production.up.railway.app/api/auth/signup -H 'Content-Type: application/json' -d '{\"email\":\"probe@test.com\",\"password\":\"password123\",\"role\":\"ATHLETE\"}')",
+      "Bash(kill %1)",
+      "Bash(curl -s -X POST https://spotr-production.up.railway.app/api/auth/signup -H 'Content-Type: application/json' -d '{\"email\":\"probe99@test.com\",\"password\":\"password123\",\"role\":\"ATHLETE\"}')",
+      "Bash(curl -s -X POST https://spotr-production.up.railway.app/api/auth/signup -H 'Content-Type: application/json' -d '{\"email\":\"testuser999@test.com\",\"password\":\"password123\",\"role\":\"ATHLETE\"}')",
+      "Bash(curl -s https://spotr-production.up.railway.app/api/health)",
+      "Bash(curl -s https://api.github.com/repos/ejbourkoff/spotr/commits/main)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\('sha','?'\\)[:8], d.get\\('commit',{}\\).get\\('message','?'\\)[:80]\\)\")",
+      "Bash(railway --version)",
+      "Bash(railway login *)",
+      "Read(//Users/evanbourkoff/.railway/**)",
+      "Read(//Users/evanbourkoff/.config/railway/**)",
+      "Bash(curl -s -X POST https://spotr-production.up.railway.app/api/auth/signup -H 'Content-Type: application/json' -d '{\"email\":\"diagtest123@test.com\",\"password\":\"password123\",\"role\":\"ATHLETE\"}')",
+      "Bash(railway run *)",
+      "Bash(DATABASE_URL=\"postgresql://postgres:UMOiySmtbCaTeDmGMZeJUnnlxtdWKcpJ@shinkansen.proxy.rlwy.net:48688/railway\" npx prisma migrate deploy)",
+      "Bash(curl -s -X POST https://spotr-production.up.railway.app/api/auth/signup -H 'Content-Type: application/json' -d '{\"email\":\"testuser_final@test.com\",\"password\":\"password123\",\"role\":\"ATHLETE\"}')",
+      "Bash(DATABASE_URL=\"postgresql://postgres:UMOiySmtbCaTeDmGMZeJUnnlxtdWKcpJ@shinkansen.proxy.rlwy.net:48688/railway\" npx prisma db execute --stdin)",
+      "Bash(DATABASE_URL=\"postgresql://postgres:UMOiySmtbCaTeDmGMZeJUnnlxtdWKcpJ@shinkansen.proxy.rlwy.net:48688/railway\" npx prisma db push --force-reset)",
+      "Bash(DATABASE_URL=\"postgresql://postgres:UMOiySmtbCaTeDmGMZeJUnnlxtdWKcpJ@shinkansen.proxy.rlwy.net:48688/railway\" npx prisma db push)",
+      "Bash(npm install *)",
+      "Bash(railway variables *)"
     ]
   }
 }

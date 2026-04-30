@@ -67,9 +67,12 @@ export interface Post {
   authorId: string;
   text: string;
   mediaUrl?: string;
-  mediaType?: string; // "photo", "video", "reel"
+  mediaType?: string;
   isReel?: boolean;
   thumbnailUrl?: string;
+  muxUploadId?: string;
+  muxAssetId?: string;
+  muxPlaybackId?: string;
   createdAt: string;
   author?: {
     id: string;

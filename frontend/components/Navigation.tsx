@@ -181,6 +181,16 @@ export default function Navigation() {
           })}
         </nav>
 
+        <div className="px-3 py-3 border-t border-gray-800">
+          <Link href="/post/create"
+            className="flex items-center gap-3 px-4 py-3 rounded-xl bg-brand text-spotr-black font-display font-black italic uppercase text-sm w-full"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0D0D0F" strokeWidth={2.5}>
+              <path strokeLinecap="round" d="M12 5v14M5 12h14" />
+            </svg>
+            New Post
+          </Link>
+        </div>
         <div className="px-4 py-4 border-t border-gray-800">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 overflow-hidden">
@@ -206,17 +216,34 @@ export default function Navigation() {
 
       {/* Mobile bottom nav */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 bg-gray-950 border-t border-gray-800 flex">
-        {navItems.slice(0, 5).map((item) => {
+        {navItems.slice(0, 2).map((item) => {
           const active = item.match ? item.match(pathname || '') : pathname === item.href
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex-1 flex flex-col items-center justify-center py-3 gap-1 text-xs font-medium transition-colors ${
-                active ? 'text-blue-500' : 'text-gray-500'
-              }`}
+            <Link key={item.href} href={item.href}
+              className={`flex-1 flex flex-col items-center justify-center py-3 gap-1 text-xs font-medium transition-colors ${active ? 'text-brand' : 'text-gray-500'}`}
             >
-              <span className={active ? 'text-blue-500' : 'text-gray-500'}>{item.icon}</span>
+              <span className={active ? 'text-brand' : 'text-gray-500'}>{item.icon}</span>
+              <span className="text-[10px]">{item.label}</span>
+            </Link>
+          )
+        })}
+        {/* Center create button */}
+        <Link href="/post/create"
+          className="flex-1 flex flex-col items-center justify-center py-3 gap-1"
+        >
+          <span className="w-9 h-9 rounded-xl bg-brand flex items-center justify-center">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0D0D0F" strokeWidth={2.5}>
+              <path strokeLinecap="round" d="M12 5v14M5 12h14" />
+            </svg>
+          </span>
+        </Link>
+        {navItems.slice(2, 4).map((item) => {
+          const active = item.match ? item.match(pathname || '') : pathname === item.href
+          return (
+            <Link key={item.href} href={item.href}
+              className={`flex-1 flex flex-col items-center justify-center py-3 gap-1 text-xs font-medium transition-colors ${active ? 'text-brand' : 'text-gray-500'}`}
+            >
+              <span className={active ? 'text-brand' : 'text-gray-500'}>{item.icon}</span>
               <span className="text-[10px]">{item.label}</span>
             </Link>
           )

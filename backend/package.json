@@ -17,6 +17,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@mux/mux-node": "^14.0.1",
     "@prisma/client": "^5.7.0",
     "@types/multer": "^2.1.0",
     "bcrypt": "^5.1.1",

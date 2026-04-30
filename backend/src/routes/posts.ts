@@ -465,33 +465,27 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
 router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
-    const { text, mediaUrl, mediaType, isReel, thumbnailUrl } = req.body;
+    const { text, mediaUrl, mediaType, isReel, thumbnailUrl, muxUploadId } = req.body;
 
-    // Allow posts with just media (for reels) or just text
-    // Reels can have minimal/no text, regular posts should have text or media
     if (isReel) {
-      // Reels can have just media
-      if (!mediaUrl) {
-        return res.status(400).json({ error: 'Reels require a media URL' });
+      if (!muxUploadId && !mediaUrl) {
+        return res.status(400).json({ error: 'Reels require a video upload' });
       }
     } else {
-      // Regular posts need text or media
       if ((!text || text.trim().length === 0) && !mediaUrl) {
         return res.status(400).json({ error: 'Post text or media is required' });
       }
     }
 
-    // TODO: Add rate limiting to prevent spam
-    // TODO: Validate mediaUrl format or upload file properly
-
     const post = await prisma.post.create({
       data: {
         authorId: userId,
-        text: text.trim(),
+        text: (text || '').trim(),
         mediaUrl: mediaUrl || null,
-        mediaType: mediaType || (mediaUrl ? 'photo' : null),
+        mediaType: isReel ? 'video' : (mediaType || (mediaUrl ? 'photo' : null)),
         isReel: isReel || false,
         thumbnailUrl: thumbnailUrl || null,
+        muxUploadId: muxUploadId || null,
       },
       include: {
         author: {

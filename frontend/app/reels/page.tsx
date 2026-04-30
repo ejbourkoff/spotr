@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { postApi, athleteApi, likeApi, saveApi, Post } from '@/lib/api'
+import MuxPlayer from '@mux/mux-player-react'
 
 const BRAND_GREEN = '#00E87A'
 
@@ -182,7 +183,16 @@ export default function ReelsPage() {
           className="absolute inset-0 transition-transform duration-300 ease-out"
           style={{ transform: `translateY(${(index - currentIndex) * 100}%)` }}
         >
-          {reel.mediaUrl ? (
+          {reel.muxPlaybackId ? (
+            <MuxPlayer
+              playbackId={reel.muxPlaybackId}
+              streamType="on-demand"
+              autoPlay={index === currentIndex}
+              loop
+              muted={index !== currentIndex}
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : reel.mediaUrl ? (
             <video
               ref={(el) => { videoRefs.current[reel.id] = el }}
               src={reel.mediaUrl}

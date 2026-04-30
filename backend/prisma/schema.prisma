@@ -175,10 +175,13 @@ model Post {
   id            String    @id @default(cuid())
   authorId      String
   text          String    @db.Text
-  mediaUrl      String? // TODO: In production, use proper file storage (S3, Cloudinary, etc.)
-  mediaType     String? // "photo", "video", "reel"
-  isReel        Boolean   @default(false) // Short-form vertical video
-  thumbnailUrl  String? // For video previews
+  mediaUrl      String?
+  mediaType     String? // "photo", "video"
+  isReel        Boolean   @default(false)
+  thumbnailUrl  String?
+  muxUploadId   String?
+  muxAssetId    String?
+  muxPlaybackId String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
