@@ -68,3 +68,7 @@
 {"ts":"2026-04-30T10:06:33.289Z","cmd":"goto","args":"file:///tmp/ob-opt3.html","origin":"file:///tmp/ob-opt3.html","durationMs":4,"status":"ok","hasCookies":false,"mode":"launched"}
 {"ts":"2026-04-30T10:06:33.339Z","cmd":"viewport","args":"390x844","origin":"file:///tmp/ob-opt3.html","durationMs":0,"status":"ok","hasCookies":false,"mode":"launched"}
 {"ts":"2026-04-30T10:06:33.525Z","cmd":"screenshot","args":"/tmp/ob-opt3.png","origin":"file:///tmp/ob-opt3.html","durationMs":21,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-04-30T11:31:04.347Z","cmd":"goto","args":"https://tranquil-exploration-production.up.railway.app","origin":"https://tranquil-exploration-production.up.railway.app/","durationMs":1705,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-04-30T11:31:04.505Z","cmd":"screenshot","args":"/tmp/spotr-live.png","origin":"https://tranquil-exploration-production.up.railway.app/","durationMs":110,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-04-30T11:31:13.453Z","cmd":"wait","args":"--networkidle","origin":"https://tranquil-exploration-production.up.railway.app/","durationMs":4,"status":"ok","hasCookies":false,"mode":"launched"}
+{"ts":"2026-04-30T11:31:16.605Z","cmd":"screenshot","args":"/tmp/spotr-live2.png","origin":"https://tranquil-exploration-production.up.railway.app/","durationMs":60,"status":"ok","hasCookies":false,"mode":"launched"}

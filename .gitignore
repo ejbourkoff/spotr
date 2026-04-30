@@ -29,5 +29,6 @@ logfile
 .vscode/
 .idea/
 
-# Prisma
-backend/prisma/migrations/*.sql
+# Prisma — keep migration files in git so Railway can run them
+# (do not exclude .sql files)
+.gstack/

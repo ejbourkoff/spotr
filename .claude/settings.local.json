@@ -63,7 +63,9 @@
       "Skill(setup-deploy)",
       "Skill(setup-deploy:*)",
       "Bash(git remote *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Skill(browse)",
+      "Skill(browse:*)"
     ]
   }
 }
