@@ -24,3 +24,18 @@ Key routing rules:
 - Ship/deploy/PR → invoke /ship or /land-and-deploy
 - Save progress → invoke /context-save
 - Resume context → invoke /context-restore
+
+## Deploy Configuration (configured by /setup-deploy)
+- Platform: Railway
+- Production URL: https://tranquil-exploration-production.up.railway.app
+- Backend URL: https://spotr-production.up.railway.app/api
+- Deploy workflow: auto-deploy on push to main
+- Deploy status command: HTTP health check
+- Project type: web app (Next.js frontend + Node/Express backend)
+- Post-deploy health check: https://spotr-production.up.railway.app/api/health
+
+### Custom deploy hooks
+- Pre-merge: none
+- Deploy trigger: git push origin main
+- Deploy status: poll Railway dashboard or health check URL
+- Health check: https://spotr-production.up.railway.app/api/health
