@@ -67,7 +67,10 @@
       "Skill(browse)",
       "Skill(browse:*)",
       "Bash(git add *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(curl -s -X POST https://spotr-production.up.railway.app/api/auth/signup -H 'Content-Type: application/json' -d '{\"email\":\"testuser99@test.com\",\"password\":\"password123\",\"role\":\"ATHLETE\"}')",
+      "Bash(railway status *)",
+      "Bash(railway logs *)"
     ]
   }
 }
