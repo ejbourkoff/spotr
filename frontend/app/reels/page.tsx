@@ -3,7 +3,8 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { postApi, athleteApi, likeApi, saveApi, Post } from '@/lib/api'
-import MuxPlayer from '@mux/mux-player-react'
+import dynamic from 'next/dynamic'
+const MuxPlayer = dynamic(() => import('@mux/mux-player-react'), { ssr: false })
 
 const BRAND_GREEN = '#00E87A'
 
