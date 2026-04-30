@@ -179,6 +179,8 @@ model Post {
   mediaType     String? // "photo", "video"
   isReel        Boolean   @default(false)
   isHighlight   Boolean   @default(false)
+  isStory       Boolean   @default(false)
+  storyExpiresAt DateTime?
   thumbnailUrl  String?
   muxUploadId   String?
   muxAssetId    String?

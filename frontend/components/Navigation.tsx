@@ -126,7 +126,7 @@ export default function Navigation() {
       <header className="fixed top-0 inset-x-0 z-50 bg-gray-950/90 backdrop-blur border-b border-gray-800">
         <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
           <Link href="/" className="text-xl font-black tracking-tight text-white">
-            <span className="text-brand">S</span>POT<span className="text-brand">R</span>
+            SPOT<span className="text-brand">R</span>
           </Link>
           <div className="flex items-center gap-2">
             <Link href="/auth/login" className="text-sm text-gray-400 hover:text-white transition-colors px-3 py-1.5">
@@ -148,7 +148,7 @@ export default function Navigation() {
       {/* Mobile top bar */}
       <header className="md:hidden fixed top-0 inset-x-0 z-50 bg-gray-950/95 backdrop-blur border-b border-gray-800 h-12 flex items-center justify-between px-4">
         <Link href="/feed" className="text-xl font-black tracking-tight text-white">
-          <span className="text-brand">S</span>POT<span className="text-brand">R</span>
+          SPOT<span className="text-brand">R</span>
         </Link>
         <Link href="/post/create" className="w-8 h-8 bg-brand rounded-lg flex items-center justify-center">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0D0D0F" strokeWidth={2.5}>
@@ -161,7 +161,7 @@ export default function Navigation() {
       <aside className="hidden md:flex fixed top-0 left-0 h-full w-60 bg-gray-950 border-r border-gray-800 flex-col z-50">
         <div className="px-6 py-5 border-b border-gray-800">
           <Link href="/feed" className="text-2xl font-black tracking-tight text-white">
-            <span className="text-brand">S</span>POT<span className="text-brand">R</span>
+            SPOT<span className="text-brand">R</span>
           </Link>
         </div>
 

@@ -70,6 +70,7 @@ export interface Post {
   mediaType?: string;
   isReel?: boolean;
   isHighlight?: boolean;
+  isStory?: boolean;
   thumbnailUrl?: string;
   muxUploadId?: string;
   muxAssetId?: string;
@@ -284,6 +285,9 @@ export const postApi = {
     return apiRequest<void>(`/posts/${id}`, {
       method: 'DELETE',
     });
+  },
+  getStories: async (): Promise<{ stories: Post[] }> => {
+    return apiRequest<{ stories: Post[] }>('/posts/stories');
   },
 };
 

@@ -467,11 +467,51 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
   }
 });
 
+// Get stories (posts where isStory=true and not expired)
+router.get('/stories', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const now = new Date();
+
+    const stories = await prisma.post.findMany({
+      where: {
+        isStory: true,
+        storyExpiresAt: { gt: now },
+      },
+      include: {
+        author: {
+          include: {
+            athleteProfile: {
+              select: { id: true, name: true, sport: true },
+            },
+            coachProfile: {
+              select: { id: true, name: true, organization: true },
+            },
+            brandProfile: {
+              select: { id: true, name: true, organizationType: true },
+            },
+          },
+        },
+        _count: {
+          select: { likes: true, comments: true, saves: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 30,
+    });
+
+    res.json({ stories });
+  } catch (error) {
+    console.error('Get stories error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Create post
 router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
-    const { text, mediaUrl, mediaType, isReel, isHighlight, thumbnailUrl, muxUploadId } = req.body;
+    const { text, mediaUrl, mediaType, isReel, isHighlight, isStory, thumbnailUrl, muxUploadId } = req.body;
 
     if (isReel) {
       if (!muxUploadId && !mediaUrl) {
@@ -507,6 +547,8 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       }
     }
 
+    const storyExpiresAt = isStory ? new Date(Date.now() + 24 * 60 * 60 * 1000) : null;
+
     const post = await prisma.post.create({
       data: {
         authorId: userId,
@@ -515,6 +557,8 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
         mediaType: isReel ? 'video' : (mediaType || (mediaUrl ? 'photo' : null)),
         isReel: isReel || false,
         isHighlight: isHighlight || false,
+        isStory: isStory || false,
+        ...(storyExpiresAt ? { storyExpiresAt } : {}),
         thumbnailUrl: resolvedThumbnailUrl,
         muxUploadId: muxUploadId || null,
         muxAssetId: resolvedMuxAssetId,

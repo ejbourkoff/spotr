@@ -1,11 +1,21 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { athleteApi, authApi, postApi, AthleteProfile, StatLine, Post, removeToken } from '@/lib/api'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+
+const SPORT_STAT_SUGGESTIONS: Record<string, string[]> = {
+  Football:   ['Passing Yds', 'Rush Yds', 'Rec Yds', 'TDs', 'INTs', 'Tackles', 'Sacks'],
+  Basketball: ['PPG', 'RPG', 'APG', 'SPG', 'BPG', 'FG%', '3P%'],
+  Soccer:     ['Goals', 'Assists', 'Shots', 'Clean Sheets', 'Saves', 'Key Passes', 'Minutes'],
+  Baseball:   ['AVG', 'HRs', 'RBI', 'ERA', 'WHIP', 'Ks', 'OPS'],
+  Volleyball: ['Kills', 'Digs', 'Assists', 'Blocks', 'Aces', 'Hit%'],
+  Swimming:   ['100 Free', '200 Free', '100 Back', '100 Fly', '100 Breast', 'IM'],
+  Track:      ['100m', '200m', '400m', 'High Jump', 'Long Jump', 'Shot Put', 'Mile'],
+}
 
 const SPORT_RING: Record<string, string> = {
   Football:   'from-orange-500 to-purple-600',
@@ -53,6 +63,28 @@ export default function AthleteProfilePage() {
   const [copied, setCopied] = useState(false)
   const [activeTab, setActiveTab] = useState<Tab>('Posts')
 
+  // Edit photo state
+  const photoEditRef = useRef<HTMLInputElement>(null)
+  const [uploadingEditPhoto, setUploadingEditPhoto] = useState(false)
+
+  const handleEditPhotoUpload = async (file: File) => {
+    setUploadingEditPhoto(true)
+    try {
+      const token = localStorage.getItem('token')
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch(`${API_BASE}/upload`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      })
+      const data = await res.json()
+      if (data.url) setFormData((prev) => ({ ...prev, avatarUrl: data.url }))
+    } finally {
+      setUploadingEditPhoto(false)
+    }
+  }
+
   // Stats sheet state
   const [statsSheet, setStatsSheet] = useState(false)
   const [statForm, setStatForm] = useState({ season: '', statType: '', value: '' })
@@ -84,6 +116,14 @@ export default function AthleteProfilePage() {
       const r = await athleteApi.updateProfile(formData)
       setProfile(r.profile)
       setFormData(r.profile)
+      if (formData.avatarUrl !== undefined) {
+        const token = localStorage.getItem('token')
+        await fetch(`${API_BASE}/auth/me`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ avatarUrl: formData.avatarUrl || null }),
+        })
+      }
       setEditing(false)
     } catch (err: any) {
       alert(err.message || 'Failed to save')
@@ -188,6 +228,35 @@ export default function AthleteProfilePage() {
         </div>
 
         <div className="px-4 pt-6 pb-10 space-y-5">
+          {/* Profile photo */}
+          <div>
+            <p className="text-xs text-gray-500 uppercase tracking-widest font-black mb-3">Profile Photo</p>
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-gray-900 border border-gray-800 overflow-hidden flex items-center justify-center">
+                {(formData as any).avatarUrl
+                  ? <img src={(formData as any).avatarUrl} alt="" className="w-full h-full object-cover" />
+                  : <span className="text-xl font-black text-gray-600">{ins}</span>
+                }
+              </div>
+              <div className="flex flex-col gap-2">
+                <input ref={photoEditRef} type="file" accept="image/*" className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleEditPhotoUpload(f) }} />
+                <button
+                  onClick={() => photoEditRef.current?.click()}
+                  disabled={uploadingEditPhoto}
+                  className="text-sm font-semibold text-[#00E87A] disabled:opacity-50"
+                >
+                  {uploadingEditPhoto ? 'Uploading…' : (formData as any).avatarUrl ? 'Change photo' : 'Add photo'}
+                </button>
+                {(formData as any).avatarUrl && (
+                  <button onClick={() => setFormData({ ...formData, avatarUrl: undefined } as any)} className="text-sm text-gray-600 hover:text-red-400">
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Bio */}
           <div>
             <p className="text-xs text-gray-500 uppercase tracking-widest font-black mb-2">Bio</p>
@@ -208,7 +277,6 @@ export default function AthleteProfilePage() {
             { label: 'School / Team', key: 'schoolTeam' as keyof AthleteProfile },
             { label: 'Class Year', key: 'classYear' as keyof AthleteProfile },
             { label: 'Location', key: 'location' as keyof AthleteProfile },
-            { label: 'Height', key: 'height' as keyof AthleteProfile },
           ].map(({ label, key }) => (
             <div key={key}>
               <p className="text-xs text-gray-500 uppercase tracking-widest font-black mb-2">{label}</p>
@@ -220,6 +288,25 @@ export default function AthleteProfilePage() {
               />
             </div>
           ))}
+
+          {/* Height dropdown */}
+          <div>
+            <p className="text-xs text-gray-500 uppercase tracking-widest font-black mb-2">Height</p>
+            <select
+              value={formData.height || ''}
+              onChange={(e) => setFormData({ ...formData, height: e.target.value || undefined })}
+              className="w-full text-sm bg-gray-900 border border-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:border-[#00E87A] appearance-none"
+            >
+              <option value="">Select height</option>
+              {Array.from({ length: 43 }, (_, i) => {
+                const totalInches = 56 + i // 56 = 4*12+8
+                const feet = Math.floor(totalInches / 12)
+                const inches = totalInches % 12
+                const label = `${feet}'${inches}"`
+                return <option key={label} value={label}>{label}</option>
+              })}
+            </select>
+          </div>
 
           {/* Toggles */}
           <div className="space-y-4 pt-2">
@@ -316,14 +403,14 @@ export default function AthleteProfilePage() {
             onClick={() => setEditing(true)}
             className="flex-1 py-2 bg-gray-900 border border-gray-800 rounded-xl text-sm font-semibold text-white text-center"
           >
-            ✏ Edit Profile
+            Edit Profile
           </button>
           {(profile as any).slug ? (
             <button
               onClick={handleShare}
               className="flex-1 py-2 bg-[#00E87A] rounded-xl text-sm font-semibold text-white text-center"
             >
-              {copied ? '✓ Copied!' : '↗ Share'}
+              {copied ? 'Copied!' : 'Share'}
             </button>
           ) : (
             <button
@@ -512,6 +599,28 @@ export default function AthleteProfilePage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Sport stat quick-pick */}
+            {profile.sport && SPORT_STAT_SUGGESTIONS[profile.sport] && (
+              <div className="mb-4">
+                <p className="text-[10px] text-gray-600 uppercase tracking-widest font-black mb-2">Quick pick</p>
+                <div className="flex flex-wrap gap-2">
+                  {SPORT_STAT_SUGGESTIONS[profile.sport].map(s => (
+                    <button
+                      key={s}
+                      onClick={() => setStatForm({ ...statForm, statType: s })}
+                      className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                        statForm.statType === s
+                          ? 'bg-[#00E87A]/15 border-[#00E87A]/40 text-[#00E87A]'
+                          : 'border-gray-800 text-gray-500 hover:border-gray-600'
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 

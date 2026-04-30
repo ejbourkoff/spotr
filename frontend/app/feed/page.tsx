@@ -96,26 +96,33 @@ const VideoIcon = () => (
 )
 
 // ── Stories row ───────────────────────────────────────────────────────────────
-function StoriesRow({ posts }: { posts: Post[] }) {
+function StoriesRow({ stories }: { stories: Post[] }) {
   const seen = new Set<string>()
-  const authors = posts.filter((p) => {
+  const authors = stories.filter((p) => {
     const name = authorName(p)
     if (seen.has(name)) return false
     seen.add(name)
     return true
-  }).slice(0, 8)
-
-  if (authors.length === 0) return null
+  }).slice(0, 7)
 
   return (
     <div className="flex gap-3 px-4 py-3 overflow-x-auto scrollbar-hide border-b border-gray-800/60">
+      {/* Your Story button */}
+      <Link href="/post/create" className="flex flex-col items-center gap-1.5 flex-shrink-0">
+        <div className="w-[58px] h-[58px] rounded-full bg-gray-900 border-2 border-dashed border-gray-700 flex items-center justify-center">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00E87A" strokeWidth={2}>
+            <path strokeLinecap="round" d="M12 5v14M5 12h14" />
+          </svg>
+        </div>
+        <span className="text-[10px] text-gray-500 max-w-[54px] text-center truncate">Your Story</span>
+      </Link>
       {authors.map((post) => {
         const name = authorName(post)
         const inits = authorInitials(post)
         const firstName = name.split(' ')[0]
         return (
           <div key={post.id} className="flex flex-col items-center gap-1.5 flex-shrink-0">
-            <div className="w-[58px] h-[58px] rounded-full p-[2px]" style={{ background: 'linear-gradient(135deg, #2563eb, #7c3aed)' }}>
+            <div className="w-[58px] h-[58px] rounded-full p-[2px]" style={{ background: 'linear-gradient(135deg, #00E87A, #009950)' }}>
               <div className={`w-full h-full rounded-full bg-gradient-to-br ${avatarGradient(name)} flex items-center justify-center text-white text-base font-bold border-2 border-gray-950`}>
                 {inits}
               </div>
@@ -415,16 +422,19 @@ export default function FeedPage() {
   const router = useRouter()
   const [posts, setPosts] = useState<Post[]>([])
   const [reels, setReels] = useState<Post[]>([])
+  const [stories, setStories] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
 
   const loadFeed = useCallback(async () => {
     try {
-      const [feedRes, reelsRes] = await Promise.all([
+      const [feedRes, reelsRes, storiesRes] = await Promise.all([
         postApi.getFeed(),
         postApi.getReels(10, 0),
+        postApi.getStories(),
       ])
       setPosts(feedRes.posts)
       setReels(reelsRes.reels)
+      setStories(storiesRes.stories)
     } catch (err: any) {
       if (err.message?.includes('Authentication')) router.push('/auth/login')
     } finally {
@@ -466,7 +476,7 @@ export default function FeedPage() {
   return (
     <main className="bg-gray-950">
       <div className="max-w-[480px] mx-auto">
-        <StoriesRow posts={posts} />
+        <StoriesRow stories={stories} />
         <Composer onPost={(post) => setPosts((prev) => [post, ...prev])} />
 
         {posts.length === 0 && reels.length === 0 && (
