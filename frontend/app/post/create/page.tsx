@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
 
-type Mode = 'post' | 'reel' | 'story'
+type Mode = 'post' | 'reel'
 
 type UploadState = 'idle' | 'uploading' | 'processing' | 'ready' | 'error'
 
@@ -77,7 +77,7 @@ export default function CreatePostPage() {
     if (submitting) return
     setSubmitting(true)
     try {
-      const body: Record<string, any> = { text, isReel: mode === 'reel', isHighlight: mode === 'post' ? isHighlight : false, isStory: mode === 'story' }
+      const body: Record<string, any> = { text, isReel: mode === 'reel', isHighlight: mode === 'post' ? isHighlight : false }
       if (mode === 'reel') {
         body.muxUploadId = muxUploadId
       } else if (imageUrl) {
@@ -94,7 +94,7 @@ export default function CreatePostPage() {
 
   const canPost = mode === 'reel'
     ? (uploadState === 'processing' || uploadState === 'ready') && !!muxUploadId
-    : text.trim().length > 0 || !!imageUrl // applies to both post and story
+    : text.trim().length > 0 || !!imageUrl
 
   return (
     <main className="min-h-screen bg-spotr-black flex flex-col">
@@ -119,7 +119,7 @@ export default function CreatePostPage() {
 
       {/* Mode toggle */}
       <div className="flex mx-4 mt-4 bg-white/[0.05] rounded-xl p-1">
-        {(['post', 'reel', 'story'] as Mode[]).map((m) => (
+        {(['post', 'reel'] as Mode[]).map((m) => (
           <button
             key={m}
             onClick={() => { setMode(m); setImageUrl(null); setMuxUploadId(null); setVideoPreview(null); setUploadState('idle') }}
@@ -127,7 +127,7 @@ export default function CreatePostPage() {
               mode === m ? 'bg-brand text-spotr-black' : 'text-spotr-white/40'
             }`}
           >
-            {m === 'post' ? 'Post' : m === 'reel' ? 'Reel' : 'Story'}
+            {m === 'post' ? 'Post' : 'Reel'}
           </button>
         ))}
       </div>
@@ -162,8 +162,8 @@ export default function CreatePostPage() {
           className="w-full bg-white/[0.04] border border-white/[0.07] rounded-2xl px-4 py-3 text-spotr-white placeholder:text-spotr-white/25 font-sans text-[15px] outline-none focus:border-brand/30 transition-colors resize-none"
         />
 
-        {/* Post/Story: image upload */}
-        {(mode === 'post' || mode === 'story') && (
+        {/* Post: image upload */}
+        {mode === 'post' && (
           <div>
             <input ref={imageRef} type="file" accept="image/*" className="hidden"
               onChange={e => { const f = e.target.files?.[0]; if (f) handleImagePick(f) }} />

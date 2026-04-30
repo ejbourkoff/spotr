@@ -108,7 +108,7 @@ function StoriesRow({ stories }: { stories: Post[] }) {
   return (
     <div className="flex gap-3 px-4 py-3 overflow-x-auto scrollbar-hide border-b border-gray-800/60">
       {/* Your Story button */}
-      <Link href="/post/create" className="flex flex-col items-center gap-1.5 flex-shrink-0">
+      <Link href="/story/create" className="flex flex-col items-center gap-1.5 flex-shrink-0">
         <div className="w-[58px] h-[58px] rounded-full bg-gray-900 border-2 border-dashed border-gray-700 flex items-center justify-center">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00E87A" strokeWidth={2}>
             <path strokeLinecap="round" d="M12 5v14M5 12h14" />
