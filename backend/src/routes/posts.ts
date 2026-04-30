@@ -1,6 +1,12 @@
 import express, { Response } from 'express';
+import Mux from '@mux/mux-node';
 import prisma from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
+
+const mux = new Mux({
+  tokenId: process.env.MUX_TOKEN_ID!,
+  tokenSecret: process.env.MUX_TOKEN_SECRET!,
+});
 
 const router = express.Router();
 
@@ -477,15 +483,41 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       }
     }
 
+    // If a muxUploadId is provided, check if the asset is already ready (race condition:
+    // Mux webhook can fire before the post is created)
+    let resolvedMuxAssetId: string | null = null;
+    let resolvedMuxPlaybackId: string | null = null;
+    let resolvedMediaUrl: string | null = mediaUrl || null;
+    let resolvedThumbnailUrl: string | null = thumbnailUrl || null;
+
+    if (muxUploadId) {
+      try {
+        const upload = await mux.video.uploads.retrieve(muxUploadId);
+        if (upload.asset_id) {
+          const asset = await mux.video.assets.retrieve(upload.asset_id);
+          if (asset.status === 'ready' && asset.playback_ids?.[0]?.id) {
+            resolvedMuxAssetId = asset.id;
+            resolvedMuxPlaybackId = asset.playback_ids[0].id;
+            resolvedMediaUrl = `https://stream.mux.com/${resolvedMuxPlaybackId}.m3u8`;
+            resolvedThumbnailUrl = `https://image.mux.com/${resolvedMuxPlaybackId}/thumbnail.jpg`;
+          }
+        }
+      } catch {
+        // Non-fatal: webhook will backfill if asset isn't ready yet
+      }
+    }
+
     const post = await prisma.post.create({
       data: {
         authorId: userId,
         text: (text || '').trim(),
-        mediaUrl: mediaUrl || null,
+        mediaUrl: resolvedMediaUrl,
         mediaType: isReel ? 'video' : (mediaType || (mediaUrl ? 'photo' : null)),
         isReel: isReel || false,
-        thumbnailUrl: thumbnailUrl || null,
+        thumbnailUrl: resolvedThumbnailUrl,
         muxUploadId: muxUploadId || null,
+        muxAssetId: resolvedMuxAssetId,
+        muxPlaybackId: resolvedMuxPlaybackId,
       },
       include: {
         author: {
