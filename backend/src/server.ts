@@ -27,7 +27,7 @@ app.use(express.json());
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'SPOTR API is running' });
+  res.json({ status: 'ok', message: 'SPOTR API is running', v: '2fb8f40' });
 });
 
 // Routes
