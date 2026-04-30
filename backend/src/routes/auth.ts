@@ -143,6 +143,7 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
         id: true,
         email: true,
         role: true,
+        avatarUrl: true,
         createdAt: true,
       },
     });
@@ -154,6 +155,22 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
     res.json({ user });
   } catch (error) {
     console.error('Get me error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update current user (avatar, etc.)
+router.patch('/me', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { avatarUrl } = req.body;
+    const user = await prisma.user.update({
+      where: { id: req.userId! },
+      data: { avatarUrl },
+      select: { id: true, email: true, role: true, avatarUrl: true, createdAt: true },
+    });
+    res.json({ user });
+  } catch (error) {
+    console.error('Update me error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

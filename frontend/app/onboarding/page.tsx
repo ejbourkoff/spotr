@@ -13,9 +13,16 @@ interface Step {
   id: string
   lines: string[]        // question text, line-broken
   accentWords?: string[] // words rendered in brand green
-  type: 'single' | 'multi' | 'text'
+  type: 'single' | 'multi' | 'text' | 'photo'
   options?: StepOption[]
   fields?: { key: string; placeholder: string; label: string }[]
+}
+
+const PHOTO_STEP: Step = {
+  id: 'photo',
+  lines: ['ADD YOUR', 'PHOTO'],
+  accentWords: ['PHOTO'],
+  type: 'photo',
 }
 
 // ─── Sport positions ─────────────────────────────────────────────────────────
@@ -95,6 +102,7 @@ const STEPS: Record<Role, Step[]> = {
         { label: 'Connect with Coaches', value: 'coaches', emoji: '📋' },
       ],
     },
+    PHOTO_STEP,
   ],
   COACH: [
     {
@@ -143,6 +151,7 @@ const STEPS: Record<Role, Step[]> = {
         { label: 'Share My Methods', value: 'content', emoji: '📋' },
       ],
     },
+    PHOTO_STEP,
   ],
   BRAND: [
     {
@@ -192,6 +201,7 @@ const STEPS: Record<Role, Step[]> = {
         { label: 'Support Athletes', value: 'support', emoji: '🤝' },
       ],
     },
+    PHOTO_STEP,
   ],
   FAN: [
     {
@@ -229,6 +239,7 @@ const STEPS: Record<Role, Step[]> = {
         { label: 'Everyone', value: 'all', emoji: '🌐' },
       ],
     },
+    PHOTO_STEP,
   ],
 }
 
@@ -302,6 +313,7 @@ export default function OnboardingPage() {
   const [answers, setAnswers] = useState<Record<string, any>>({})
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
+  const [uploading, setUploading] = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -329,6 +341,7 @@ export default function OnboardingPage() {
   const currentAnswer = answers[enrichedStep.id]
 
   const canContinue = (() => {
+    if (enrichedStep.type === 'photo') return true
     if (enrichedStep.type === 'text') {
       const required = enrichedStep.fields?.filter((_f, i) => i === 0) ?? []
       return required.every(f => (answers[f.key] as string)?.trim())
@@ -361,6 +374,23 @@ export default function OnboardingPage() {
 
   const handleText = (key: string, value: string) => {
     setAnswers(prev => ({ ...prev, [key]: value }))
+  }
+
+  const handlePhotoUpload = async (file: File) => {
+    setUploading(true)
+    try {
+      const token = localStorage.getItem('token')
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch(`${API_BASE}/upload`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      })
+      const data = await res.json()
+      if (data.url) setAnswers(prev => ({ ...prev, avatarUrl: data.url }))
+    } catch {}
+    setUploading(false)
   }
 
   const next = async () => {
@@ -418,6 +448,16 @@ export default function OnboardingPage() {
         }))
       }
     } catch {}
+
+    if (answers.avatarUrl) {
+      try {
+        await fetch(`${API_BASE}/auth/me`, {
+          method: 'PATCH',
+          headers,
+          body: JSON.stringify({ avatarUrl: answers.avatarUrl }),
+        })
+      } catch {}
+    }
 
     setSaving(false)
     setDone(true)
@@ -552,6 +592,40 @@ export default function OnboardingPage() {
           </div>
         )}
 
+        {/* Photo upload */}
+        {enrichedStep.type === 'photo' && (
+          <div className="flex flex-col items-center gap-6 pt-4">
+            <label className="cursor-pointer group">
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={e => {
+                  const file = e.target.files?.[0]
+                  if (file) handlePhotoUpload(file)
+                }}
+              />
+              <div className="w-36 h-36 rounded-full border-2 border-dashed border-white/20 group-active:border-brand/60 flex items-center justify-center overflow-hidden bg-white/[0.04] transition-colors relative">
+                {uploading ? (
+                  <div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin" />
+                ) : answers.avatarUrl ? (
+                  <img src={answers.avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="flex flex-col items-center gap-2 text-spotr-white/30">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                )}
+              </div>
+            </label>
+            <p className="font-mono text-[9px] font-bold tracking-widest uppercase text-spotr-white/30">
+              {answers.avatarUrl ? 'Tap to change' : 'Tap to add photo'}
+            </p>
+          </div>
+        )}
+
         {/* Multi-select hint */}
         {enrichedStep.type === 'multi' && (
           <p className="font-mono text-[9px] font-bold tracking-widest uppercase text-spotr-white/25 mt-3">
@@ -571,7 +645,7 @@ export default function OnboardingPage() {
             <div className="w-5 h-5 border-2 border-spotr-black/50 border-t-transparent rounded-full animate-spin" />
           ) : (
             <>
-              {stepIndex === steps.length ? 'Finish' : 'Continue'}
+              {stepIndex === steps.length ? 'Finish' : enrichedStep.type === 'photo' && !answers.avatarUrl ? 'Skip' : 'Continue'}
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0D0D0F" strokeWidth={2.5}>
                 <path strokeLinecap="round" d="M5 12h14M12 5l7 7-7 7"/>
               </svg>

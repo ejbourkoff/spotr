@@ -9,6 +9,7 @@ interface User {
   id: string
   email: string
   role: 'ATHLETE' | 'COACH' | 'BRAND'
+  avatarUrl?: string | null
 }
 
 const HomeIcon = () => (
@@ -182,8 +183,11 @@ export default function Navigation() {
 
         <div className="px-4 py-4 border-t border-gray-800">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-              {initials(user.email)}
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 overflow-hidden">
+              {user.avatarUrl
+                ? <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+                : initials(user.email)
+              }
             </div>
             <div className="min-w-0">
               <p className="text-xs text-gray-400 truncate">{user.email}</p>
