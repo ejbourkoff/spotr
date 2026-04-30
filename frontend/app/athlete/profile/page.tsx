@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { athleteApi, authApi, postApi, AthleteProfile, StatLine, Highlight, Post, removeToken } from '@/lib/api'
+import { athleteApi, authApi, postApi, AthleteProfile, StatLine, Post, removeToken } from '@/lib/api'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
 
@@ -52,6 +52,12 @@ export default function AthleteProfilePage() {
   const [formData, setFormData] = useState<Partial<AthleteProfile>>({})
   const [copied, setCopied] = useState(false)
   const [activeTab, setActiveTab] = useState<Tab>('Posts')
+
+  // Stats sheet state
+  const [statsSheet, setStatsSheet] = useState(false)
+  const [statForm, setStatForm] = useState({ season: '', statType: '', value: '' })
+  const [addingstat, setAddingStat] = useState(false)
+  const [deletingStatId, setDeletingStatId] = useState<string | null>(null)
 
   useEffect(() => {
     Promise.all([
@@ -113,6 +119,32 @@ export default function AthleteProfilePage() {
     }
   }
 
+  const handleAddStat = async () => {
+    if (!statForm.season.trim() || !statForm.statType.trim() || !statForm.value) return
+    setAddingStat(true)
+    try {
+      const r = await athleteApi.addStat(statForm.season.trim(), statForm.statType.trim(), parseFloat(statForm.value))
+      setProfile((prev) => prev ? { ...prev, stats: [...(prev.stats || []), r.statLine] } : prev)
+      setStatForm({ season: '', statType: '', value: '' })
+    } catch (err: any) {
+      alert(err.message || 'Failed to add stat')
+    } finally {
+      setAddingStat(false)
+    }
+  }
+
+  const handleDeleteStat = async (id: string) => {
+    setDeletingStatId(id)
+    try {
+      await athleteApi.deleteStat(id)
+      setProfile((prev) => prev ? { ...prev, stats: (prev.stats || []).filter(s => s.id !== id) } : prev)
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete stat')
+    } finally {
+      setDeletingStatId(null)
+    }
+  }
+
   if (loading) {
     return (
       <main className="min-h-screen flex items-center justify-center bg-[#0D0D0F]">
@@ -133,7 +165,7 @@ export default function AthleteProfilePage() {
   const avatarGrad = SPORT_AVATAR[profile.sport] || DEFAULT_AVATAR
   const ins = initials(profile.name)
   const stats = profile.stats || []
-  const highlights = profile.highlights || []
+  const highlightPosts = posts.filter(p => (p as any).isHighlight)
 
   if (editing) {
     return (
@@ -363,6 +395,9 @@ export default function AthleteProfilePage() {
                 ) : (
                   <p className="text-[11px] text-gray-500 px-2 text-center leading-snug line-clamp-3">{post.text}</p>
                 )}
+                {(post as any).isHighlight && (
+                  <span className="absolute bottom-1.5 left-1.5 text-[9px] font-black text-[#00E87A] bg-black/70 px-1.5 py-0.5 rounded uppercase tracking-wide">⭐</span>
+                )}
               </div>
             ))}
           </div>
@@ -375,7 +410,18 @@ export default function AthleteProfilePage() {
       )}
 
       {activeTab === 'Stats' && (
-        <div className="px-4 py-2">
+        <div className="px-4 py-4">
+          {/* Header row with button */}
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs text-gray-500 uppercase tracking-widest font-black">Season Stats</p>
+            <button
+              onClick={() => setStatsSheet(true)}
+              className="text-xs font-black uppercase tracking-wide text-[#00E87A] border border-[#00E87A]/30 px-3 py-1.5 rounded-lg"
+            >
+              {stats.length === 0 ? '+ Add Stats' : '✏ Edit Stats'}
+            </button>
+          </div>
+
           {stats.length > 0 ? stats.map((stat: StatLine) => (
             <div key={stat.id} className="flex items-center justify-between py-3 border-b border-gray-900">
               <div>
@@ -385,49 +431,127 @@ export default function AthleteProfilePage() {
               <span className="text-sm font-black text-white">{stat.value}</span>
             </div>
           )) : (
-            <div className="py-20 text-center">
-              <p className="text-gray-500 font-medium">No stats added yet</p>
+            <div className="py-16 text-center">
+              <p className="text-gray-500 font-medium">No stats yet</p>
+              <p className="text-gray-700 text-sm mt-1">Tap "Add Stats" to get started</p>
             </div>
           )}
         </div>
       )}
 
       {activeTab === 'Highlights' && (
-        <div className="px-4 py-2">
-          {highlights.length > 0 ? highlights.map((h: Highlight) => (
-            <a
-              key={h.id}
-              href={h.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-3 py-3 border-b border-gray-900"
-            >
-              <div className="w-10 h-10 rounded-xl bg-gray-900 border border-gray-800 flex items-center justify-center flex-shrink-0">
-                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="text-[#00E87A]">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white truncate">{h.title || 'View Highlight'}</p>
-                {h.description && <p className="text-xs text-gray-500 truncate mt-0.5">{h.description}</p>}
-                {(h.gameDate || h.season) && (
-                  <p className="text-[10px] text-gray-700 mt-0.5">{[h.gameDate, h.season].filter(Boolean).join(' · ')}</p>
-                )}
-              </div>
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="text-gray-700 flex-shrink-0">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
-            </a>
-          )) : (
-            <div className="py-20 text-center">
+        <div>
+          {highlightPosts.length > 0 ? (
+            <div className="grid grid-cols-3 gap-0.5">
+              {highlightPosts.map((post) => (
+                <div
+                  key={post.id}
+                  className="aspect-square bg-gray-900 flex items-center justify-center relative overflow-hidden"
+                >
+                  {post.mediaUrl ? (
+                    post.mediaType === 'video' || post.isReel ? (
+                      <>
+                        {post.thumbnailUrl
+                          ? <img src={post.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                          : <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center"><span className="text-2xl">🎬</span></div>
+                        }
+                        <span className="absolute top-1.5 right-1.5 text-[10px] text-white bg-black/60 px-1.5 py-0.5 rounded">▶</span>
+                      </>
+                    ) : (
+                      <img src={post.mediaUrl} alt="" className="w-full h-full object-cover" />
+                    )
+                  ) : (
+                    <p className="text-[11px] text-gray-500 px-2 text-center leading-snug line-clamp-3">{post.text}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="py-20 text-center px-6">
               <p className="text-gray-500 font-medium">No highlights yet</p>
+              <p className="text-gray-700 text-sm mt-1">When you create a post, toggle "Mark as Highlight" to show it here</p>
             </div>
           )}
         </div>
       )}
 
       <div className="h-10" />
+
+      {/* Stats bottom sheet */}
+      {statsSheet && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setStatsSheet(false)} />
+          <div className="relative bg-[#111113] rounded-t-2xl px-4 pt-4 pb-10 max-h-[85vh] overflow-y-auto">
+            {/* Handle */}
+            <div className="w-10 h-1 bg-gray-700 rounded-full mx-auto mb-4" />
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-black text-white">Season Stats</h2>
+              <button onClick={() => setStatsSheet(false)} className="text-gray-500 text-sm">Done</button>
+            </div>
+
+            {/* Existing stats with delete */}
+            {stats.length > 0 && (
+              <div className="mb-5">
+                {stats.map((stat: StatLine) => (
+                  <div key={stat.id} className="flex items-center justify-between py-3 border-b border-gray-800">
+                    <div>
+                      <p className="text-sm text-gray-200 font-semibold">{stat.statType}</p>
+                      {stat.season && <p className="text-[10px] text-gray-600 mt-0.5">{stat.season}</p>}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-black text-white">{stat.value}</span>
+                      <button
+                        onClick={() => handleDeleteStat(stat.id)}
+                        disabled={deletingStatId === stat.id}
+                        className="text-red-500/70 hover:text-red-400 disabled:opacity-40 p-1"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Add new stat form */}
+            <p className="text-xs text-gray-500 uppercase tracking-widest font-black mb-3">Add a Stat</p>
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={statForm.statType}
+                onChange={(e) => setStatForm({ ...statForm, statType: e.target.value })}
+                placeholder="Stat type (e.g. PPG, Yards, Goals)"
+                className="w-full text-sm bg-gray-900 border border-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:border-[#00E87A] placeholder-gray-600"
+              />
+              <div className="flex gap-3">
+                <input
+                  type="number"
+                  value={statForm.value}
+                  onChange={(e) => setStatForm({ ...statForm, value: e.target.value })}
+                  placeholder="Value"
+                  className="flex-1 text-sm bg-gray-900 border border-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:border-[#00E87A] placeholder-gray-600"
+                />
+                <input
+                  type="text"
+                  value={statForm.season}
+                  onChange={(e) => setStatForm({ ...statForm, season: e.target.value })}
+                  placeholder="Season (e.g. 2024-25)"
+                  className="flex-1 text-sm bg-gray-900 border border-gray-800 text-white rounded-xl px-4 py-3 outline-none focus:border-[#00E87A] placeholder-gray-600"
+                />
+              </div>
+              <button
+                onClick={handleAddStat}
+                disabled={addingstat || !statForm.statType.trim() || !statForm.value || !statForm.season.trim()}
+                className="w-full py-3 bg-[#00E87A] text-[#0D0D0F] font-black uppercase text-sm rounded-xl disabled:opacity-40 transition-opacity"
+              >
+                {addingstat ? 'Adding…' : '+ Add Stat'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

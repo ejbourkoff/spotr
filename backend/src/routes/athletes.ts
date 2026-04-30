@@ -263,6 +263,28 @@ router.post('/profile/stats', authenticate, requireRole('ATHLETE'), async (req: 
   }
 });
 
+// Delete stat line
+router.delete('/profile/stats/:id', authenticate, requireRole('ATHLETE'), async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const { id } = req.params;
+
+    const athlete = await prisma.athleteProfile.findUnique({ where: { userId } });
+    if (!athlete) return res.status(404).json({ error: 'Athlete profile not found' });
+
+    const stat = await prisma.statLine.findUnique({ where: { id } });
+    if (!stat || stat.athleteId !== athlete.id) {
+      return res.status(404).json({ error: 'Stat not found' });
+    }
+
+    await prisma.statLine.delete({ where: { id } });
+    res.json({ message: 'Stat deleted' });
+  } catch (error) {
+    console.error('Delete stat error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Add highlight
 router.post('/profile/highlights', authenticate, requireRole('ATHLETE'), async (req: AuthRequest, res: Response) => {
   try {

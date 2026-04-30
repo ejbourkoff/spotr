@@ -91,7 +91,8 @@
       "Bash(DATABASE_URL=\"postgresql://postgres:UMOiySmtbCaTeDmGMZeJUnnlxtdWKcpJ@shinkansen.proxy.rlwy.net:48688/railway\" npx prisma db push --force-reset)",
       "Bash(DATABASE_URL=\"postgresql://postgres:UMOiySmtbCaTeDmGMZeJUnnlxtdWKcpJ@shinkansen.proxy.rlwy.net:48688/railway\" npx prisma db push)",
       "Bash(npm install *)",
-      "Bash(railway variables *)"
+      "Bash(railway variables *)",
+      "Bash(curl -s -X POST https://spotr-production.up.railway.app/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"navtest123@test.com\",\"password\":\"password123\"}')"
     ]
   }
 }

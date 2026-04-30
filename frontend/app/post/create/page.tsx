@@ -18,6 +18,7 @@ export default function CreatePostPage() {
   const [videoPreview, setVideoPreview] = useState<string | null>(null)
   const [uploadState, setUploadState] = useState<UploadState>('idle')
   const [uploadProgress, setUploadProgress] = useState(0)
+  const [isHighlight, setIsHighlight] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const imageRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLInputElement>(null)
@@ -76,7 +77,7 @@ export default function CreatePostPage() {
     if (submitting) return
     setSubmitting(true)
     try {
-      const body: Record<string, any> = { text, isReel: mode === 'reel' }
+      const body: Record<string, any> = { text, isReel: mode === 'reel', isHighlight }
       if (mode === 'reel') {
         body.muxUploadId = muxUploadId
       } else if (imageUrl) {
@@ -130,6 +131,26 @@ export default function CreatePostPage() {
           </button>
         ))}
       </div>
+
+      {/* Highlight toggle */}
+      <button
+        onClick={() => setIsHighlight(!isHighlight)}
+        className={`mx-4 mt-3 flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${
+          isHighlight
+            ? 'bg-brand/10 border-brand/30'
+            : 'bg-white/[0.03] border-white/[0.06]'
+        }`}
+      >
+        <div className={`w-10 h-5 rounded-full relative transition-colors flex-shrink-0 ${isHighlight ? 'bg-brand' : 'bg-white/10'}`}>
+          <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${isHighlight ? 'translate-x-5' : 'translate-x-0.5'}`} />
+        </div>
+        <div className="text-left">
+          <p className={`text-[13px] font-black uppercase tracking-wide ${isHighlight ? 'text-brand' : 'text-spotr-white/50'}`}>
+            Mark as Highlight
+          </p>
+          <p className="text-[10px] text-spotr-white/25 mt-0.5">Shows in your profile Highlights tab</p>
+        </div>
+      </button>
 
       <div className="flex-1 px-4 pt-5 flex flex-col gap-4">
         {/* Text input */}

@@ -69,6 +69,7 @@ export interface Post {
   mediaUrl?: string;
   mediaType?: string;
   isReel?: boolean;
+  isHighlight?: boolean;
   thumbnailUrl?: string;
   muxUploadId?: string;
   muxAssetId?: string;
@@ -219,6 +220,9 @@ export const athleteApi = {
       method: 'POST',
       body: JSON.stringify({ season, statType, value }),
     });
+  },
+  deleteStat: async (id: string): Promise<void> => {
+    return apiRequest<void>(`/athletes/profile/stats/${id}`, { method: 'DELETE' });
   },
   addHighlight: async (highlight: Partial<Highlight>): Promise<{ highlight: Highlight }> => {
     return apiRequest<{ highlight: Highlight }>('/athletes/profile/highlights', {

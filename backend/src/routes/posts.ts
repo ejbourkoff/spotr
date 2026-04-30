@@ -471,7 +471,7 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
 router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
-    const { text, mediaUrl, mediaType, isReel, thumbnailUrl, muxUploadId } = req.body;
+    const { text, mediaUrl, mediaType, isReel, isHighlight, thumbnailUrl, muxUploadId } = req.body;
 
     if (isReel) {
       if (!muxUploadId && !mediaUrl) {
@@ -514,6 +514,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
         mediaUrl: resolvedMediaUrl,
         mediaType: isReel ? 'video' : (mediaType || (mediaUrl ? 'photo' : null)),
         isReel: isReel || false,
+        isHighlight: isHighlight || false,
         thumbnailUrl: resolvedThumbnailUrl,
         muxUploadId: muxUploadId || null,
         muxAssetId: resolvedMuxAssetId,

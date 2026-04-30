@@ -178,6 +178,7 @@ model Post {
   mediaUrl      String?
   mediaType     String? // "photo", "video"
   isReel        Boolean   @default(false)
+  isHighlight   Boolean   @default(false)
   thumbnailUrl  String?
   muxUploadId   String?
   muxAssetId    String?
