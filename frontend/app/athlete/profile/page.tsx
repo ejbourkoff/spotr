@@ -78,8 +78,12 @@ export default function AthleteProfilePage() {
         headers: { Authorization: `Bearer ${token}` },
         body: form,
       })
+      if (!res.ok) throw new Error('Upload failed')
       const data = await res.json()
-      if (data.url) setFormData((prev) => ({ ...prev, avatarUrl: data.url }))
+      if (!data.url) throw new Error('No URL returned')
+      setFormData((prev) => ({ ...prev, avatarUrl: data.url }))
+    } catch {
+      alert('Photo upload failed. Make sure the file is an image under 20MB.')
     } finally {
       setUploadingEditPhoto(false)
     }
@@ -98,7 +102,7 @@ export default function AthleteProfilePage() {
     ])
       .then(async ([profileRes, meRes]) => {
         setProfile(profileRes.profile)
-        setFormData(profileRes.profile)
+        setFormData({ ...profileRes.profile, avatarUrl: profileRes.profile.user?.avatarUrl })
         try {
           const postsRes = await postApi.getUserPosts(meRes.user.id)
           setPosts(postsRes.posts)
@@ -114,16 +118,21 @@ export default function AthleteProfilePage() {
     setSaving(true)
     try {
       const r = await athleteApi.updateProfile(formData)
-      setProfile(r.profile)
-      setFormData(r.profile)
-      if (formData.avatarUrl !== undefined) {
+      const savedAvatarUrl = formData.avatarUrl
+      if (savedAvatarUrl !== undefined) {
         const token = localStorage.getItem('token')
         await fetch(`${API_BASE}/auth/me`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ avatarUrl: formData.avatarUrl || null }),
+          body: JSON.stringify({ avatarUrl: savedAvatarUrl || null }),
         })
       }
+      const updatedProfile = {
+        ...r.profile,
+        user: { ...(r.profile.user || {}), avatarUrl: savedAvatarUrl },
+      } as typeof r.profile
+      setProfile(updatedProfile)
+      setFormData({ ...updatedProfile, avatarUrl: savedAvatarUrl })
       setEditing(false)
     } catch (err: any) {
       alert(err.message || 'Failed to save')
@@ -212,7 +221,7 @@ export default function AthleteProfilePage() {
       <main className="min-h-screen bg-[#0D0D0F]">
         <div className="px-4 pt-5 pb-4 flex items-center justify-between border-b border-gray-800">
           <button
-            onClick={() => { setEditing(false); setFormData(profile) }}
+            onClick={() => { setEditing(false); setFormData({ ...profile, avatarUrl: profile.user?.avatarUrl }) }}
             className="text-sm text-gray-400 font-medium"
           >
             Cancel
@@ -348,9 +357,17 @@ export default function AthleteProfilePage() {
           {/* Avatar with gradient ring */}
           <div className="flex-shrink-0">
             <div className={`p-[3px] rounded-full bg-gradient-to-br ${ring}`}>
-              <div className={`w-20 h-20 rounded-full bg-gradient-to-br ${avatarGrad} flex items-center justify-center text-white text-2xl font-black border-2 border-[#060810]`}>
-                {ins || <PersonIcon />}
-              </div>
+              {profile.user?.avatarUrl ? (
+                <img
+                  src={profile.user.avatarUrl}
+                  alt={profile.name}
+                  className="w-20 h-20 rounded-full object-cover border-2 border-[#060810]"
+                />
+              ) : (
+                <div className={`w-20 h-20 rounded-full bg-gradient-to-br ${avatarGrad} flex items-center justify-center text-white text-2xl font-black border-2 border-[#060810]`}>
+                  {ins || <PersonIcon />}
+                </div>
+              )}
             </div>
           </div>
 

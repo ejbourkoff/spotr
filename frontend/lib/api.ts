@@ -15,7 +15,7 @@ export interface AuthResponse {
 export interface AthleteProfile {
   id: string;
   slug?: string;
-  user?: { id: string };
+  user?: { id: string; avatarUrl?: string };
   name: string;
   sport: string;
   position?: string;

@@ -22,6 +22,7 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
           select: {
             id: true,
             email: true,
+            avatarUrl: true,
           },
         },
       },
@@ -190,6 +191,7 @@ router.post('/profile', authenticate, requireRole('ATHLETE'), async (req: AuthRe
       include: {
         stats: true,
         highlights: true,
+        user: { select: { id: true, avatarUrl: true } },
       },
     });
 
@@ -213,6 +215,9 @@ router.get('/profile/me', authenticate, requireRole('ATHLETE'), async (req: Auth
         },
         highlights: {
           orderBy: { createdAt: 'desc' },
+        },
+        user: {
+          select: { id: true, avatarUrl: true },
         },
       },
     });

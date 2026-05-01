@@ -36,8 +36,10 @@ export default function CreatePostPage() {
         headers: { Authorization: `Bearer ${token}` },
         body: form,
       })
+      if (!res.ok) throw new Error('Upload failed')
       const data = await res.json()
-      if (data.url) setImageUrl(data.url)
+      if (!data.url) throw new Error('No URL returned')
+      setImageUrl(data.url)
       setUploadState('ready')
     } catch {
       setUploadState('error')
