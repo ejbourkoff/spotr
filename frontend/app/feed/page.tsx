@@ -120,6 +120,9 @@ function StoryViewer({ stories, startIndex, onClose }: {
     return () => { if (timerRef.current) clearInterval(timerRef.current) }
   }, [current, stories.length, onClose])
 
+  const [storyImgBroken, setStoryImgBroken] = useState(false)
+  useEffect(() => { setStoryImgBroken(false) }, [current])
+
   const story = stories[current]
   if (!story) return null
 
@@ -129,8 +132,8 @@ function StoryViewer({ stories, startIndex, onClose }: {
   return (
     <div className="fixed inset-0 z-50 bg-black touch-none">
       {/* Background */}
-      {story.mediaUrl
-        ? <img src={story.mediaUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+      {story.mediaUrl && !storyImgBroken
+        ? <img src={story.mediaUrl} alt="" className="absolute inset-0 w-full h-full object-cover" onError={() => setStoryImgBroken(true)} />
         : <div className="absolute inset-0 bg-gradient-to-br from-gray-900 to-black" />
       }
 
@@ -463,6 +466,7 @@ function PostCard({ post, onLike, onSave, onComment, onShare }: {
 }) {
   const [showComments, setShowComments] = useState(false)
   const [commentText, setCommentText] = useState('')
+  const [mediaBroken, setMediaBroken] = useState(false)
   const name = authorName(post)
   const sport = authorSport(post)
   const school = authorSchool(post)
@@ -519,7 +523,7 @@ function PostCard({ post, onLike, onSave, onComment, onShare }: {
       )}
 
       {/* Media */}
-      {post.mediaUrl && (
+      {post.mediaUrl && !mediaBroken && (
         <div className="relative bg-gray-900">
           {isVideo ? (
             <>
@@ -536,7 +540,7 @@ function PostCard({ post, onLike, onSave, onComment, onShare }: {
               )}
             </>
           ) : (
-            <img src={post.mediaUrl} alt="" className="w-full object-cover" style={{ maxHeight: 420 }} loading="lazy" />
+            <img src={post.mediaUrl} alt="" className="w-full object-cover" style={{ maxHeight: 420 }} loading="lazy" onError={() => setMediaBroken(true)} />
           )}
         </div>
       )}

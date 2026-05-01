@@ -26,6 +26,7 @@ export default function AthleteProfileViewPage() {
   const [loading, setLoading] = useState(true)
   const [isFollowing, setIsFollowing] = useState(false)
   const [followLoading, setFollowLoading] = useState(false)
+  const [brokenMedia, setBrokenMedia] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     const load = async () => {
@@ -167,18 +168,21 @@ export default function AthleteProfileViewPage() {
         <p className="px-4 text-[10px] text-gray-600 uppercase tracking-widest font-black mb-2">Posts</p>
         {nonStoryPosts.length > 0 ? (
           <div className="grid grid-cols-3 gap-0.5">
-            {nonStoryPosts.map(post => (
-              <div key={post.id} className="aspect-square bg-gray-900 flex items-center justify-center relative overflow-hidden">
-                {post.mediaUrl ? (
-                  <img src={post.mediaUrl} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <p className="text-[11px] text-gray-500 px-2 text-center leading-snug line-clamp-3">{post.text}</p>
-                )}
-                {(post as any).isHighlight && (
-                  <span className="absolute bottom-1.5 left-1.5 text-[9px] font-black text-[#00E87A] bg-black/70 px-1.5 py-0.5 rounded uppercase">HL</span>
-                )}
-              </div>
-            ))}
+            {nonStoryPosts.map(post => {
+              const showImg = post.mediaUrl && !brokenMedia.has(post.id)
+              return (
+                <div key={post.id} className="aspect-square bg-gray-900 flex items-center justify-center relative overflow-hidden">
+                  {showImg ? (
+                    <img src={post.mediaUrl!} alt="" className="w-full h-full object-cover" onError={() => setBrokenMedia(p => new Set([...p, post.id]))} />
+                  ) : (
+                    <p className="text-[11px] text-gray-500 px-2 text-center leading-snug line-clamp-3">{post.text || ''}</p>
+                  )}
+                  {(post as any).isHighlight && (
+                    <span className="absolute bottom-1.5 left-1.5 text-[9px] font-black text-[#00E87A] bg-black/70 px-1.5 py-0.5 rounded uppercase">HL</span>
+                  )}
+                </div>
+              )
+            })}
           </div>
         ) : (
           <p className="text-center text-gray-600 text-sm py-12">No posts yet</p>

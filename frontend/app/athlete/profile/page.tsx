@@ -62,6 +62,8 @@ export default function AthleteProfilePage() {
   const [formData, setFormData] = useState<Partial<AthleteProfile>>({})
   const [copied, setCopied] = useState(false)
   const [activeTab, setActiveTab] = useState<Tab>('Posts')
+  const [brokenMedia, setBrokenMedia] = useState<Set<string>>(new Set())
+  const [avatarBroken, setAvatarBroken] = useState(false)
 
   // Edit photo state
   const photoEditRef = useRef<HTMLInputElement>(null)
@@ -357,11 +359,12 @@ export default function AthleteProfilePage() {
           {/* Avatar with gradient ring */}
           <div className="flex-shrink-0">
             <div className={`p-[3px] rounded-full bg-gradient-to-br ${ring}`}>
-              {profile.user?.avatarUrl ? (
+              {profile.user?.avatarUrl && !avatarBroken ? (
                 <img
                   src={profile.user.avatarUrl}
                   alt={profile.name}
                   className="w-20 h-20 rounded-full object-cover border-2 border-[#060810]"
+                  onError={() => setAvatarBroken(true)}
                 />
               ) : (
                 <div className={`w-20 h-20 rounded-full bg-gradient-to-br ${avatarGrad} flex items-center justify-center text-white text-2xl font-black border-2 border-[#060810]`}>
@@ -479,31 +482,35 @@ export default function AthleteProfilePage() {
       {activeTab === 'Posts' && (
         posts.length > 0 ? (
           <div className="grid grid-cols-3 gap-0.5">
-            {posts.map((post) => (
-              <div
-                key={post.id}
-                className="aspect-square bg-gray-900 flex items-center justify-center relative overflow-hidden"
-              >
-                {post.mediaUrl ? (
-                  post.mediaType === 'video' || post.isReel ? (
-                    <>
-                      {post.thumbnailUrl
-                        ? <img src={post.thumbnailUrl} alt="" className="w-full h-full object-cover" />
-                        : <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center"><span className="text-2xl">🎬</span></div>
-                      }
-                      <span className="absolute top-1.5 right-1.5 text-[10px] text-white bg-black/60 px-1.5 py-0.5 rounded">▶</span>
-                    </>
+            {posts.map((post) => {
+              const showImg = post.mediaUrl && !brokenMedia.has(post.id)
+              const isVid = post.mediaType === 'video' || post.isReel
+              return (
+                <div
+                  key={post.id}
+                  className="aspect-square bg-gray-900 flex items-center justify-center relative overflow-hidden"
+                >
+                  {showImg ? (
+                    isVid ? (
+                      <>
+                        {post.thumbnailUrl
+                          ? <img src={post.thumbnailUrl} alt="" className="w-full h-full object-cover" onError={() => setBrokenMedia(p => new Set([...p, post.id]))} />
+                          : <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center"><span className="text-xl text-gray-500">▶</span></div>
+                        }
+                        <span className="absolute top-1.5 right-1.5 text-[10px] text-white bg-black/60 px-1.5 py-0.5 rounded">▶</span>
+                      </>
+                    ) : (
+                      <img src={post.mediaUrl!} alt="" className="w-full h-full object-cover" onError={() => setBrokenMedia(p => new Set([...p, post.id]))} />
+                    )
                   ) : (
-                    <img src={post.mediaUrl} alt="" className="w-full h-full object-cover" />
-                  )
-                ) : (
-                  <p className="text-[11px] text-gray-500 px-2 text-center leading-snug line-clamp-3">{post.text}</p>
-                )}
-                {(post as any).isHighlight && (
-                  <span className="absolute bottom-1.5 left-1.5 text-[9px] font-black text-[#00E87A] bg-black/70 px-1.5 py-0.5 rounded uppercase tracking-wide">⭐</span>
-                )}
-              </div>
-            ))}
+                    <p className="text-[11px] text-gray-500 px-2 text-center leading-snug line-clamp-3">{post.text || ''}</p>
+                  )}
+                  {(post as any).isHighlight && (
+                    <span className="absolute bottom-1.5 left-1.5 text-[9px] font-black text-[#00E87A] bg-black/70 px-1.5 py-0.5 rounded uppercase tracking-wide">⭐</span>
+                  )}
+                </div>
+              )
+            })}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-center px-6">
@@ -547,28 +554,32 @@ export default function AthleteProfilePage() {
         <div>
           {highlightPosts.length > 0 ? (
             <div className="grid grid-cols-3 gap-0.5">
-              {highlightPosts.map((post) => (
-                <div
-                  key={post.id}
-                  className="aspect-square bg-gray-900 flex items-center justify-center relative overflow-hidden"
-                >
-                  {post.mediaUrl ? (
-                    post.mediaType === 'video' || post.isReel ? (
-                      <>
-                        {post.thumbnailUrl
-                          ? <img src={post.thumbnailUrl} alt="" className="w-full h-full object-cover" />
-                          : <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center"><span className="text-2xl">🎬</span></div>
-                        }
-                        <span className="absolute top-1.5 right-1.5 text-[10px] text-white bg-black/60 px-1.5 py-0.5 rounded">▶</span>
-                      </>
+              {highlightPosts.map((post) => {
+                const showImg = post.mediaUrl && !brokenMedia.has(post.id)
+                const isVid = post.mediaType === 'video' || post.isReel
+                return (
+                  <div
+                    key={post.id}
+                    className="aspect-square bg-gray-900 flex items-center justify-center relative overflow-hidden"
+                  >
+                    {showImg ? (
+                      isVid ? (
+                        <>
+                          {post.thumbnailUrl
+                            ? <img src={post.thumbnailUrl} alt="" className="w-full h-full object-cover" onError={() => setBrokenMedia(p => new Set([...p, post.id]))} />
+                            : <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center"><span className="text-xl text-gray-500">▶</span></div>
+                          }
+                          <span className="absolute top-1.5 right-1.5 text-[10px] text-white bg-black/60 px-1.5 py-0.5 rounded">▶</span>
+                        </>
+                      ) : (
+                        <img src={post.mediaUrl!} alt="" className="w-full h-full object-cover" onError={() => setBrokenMedia(p => new Set([...p, post.id]))} />
+                      )
                     ) : (
-                      <img src={post.mediaUrl} alt="" className="w-full h-full object-cover" />
-                    )
-                  ) : (
-                    <p className="text-[11px] text-gray-500 px-2 text-center leading-snug line-clamp-3">{post.text}</p>
-                  )}
-                </div>
-              ))}
+                      <p className="text-[11px] text-gray-500 px-2 text-center leading-snug line-clamp-3">{post.text || ''}</p>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           ) : (
             <div className="py-20 text-center px-6">
