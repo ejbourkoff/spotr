@@ -112,11 +112,11 @@ export default function CreateStoryPage() {
       const res = await fetch(`${API_BASE}/upload`, {
         method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form,
       })
-      if (!res.ok) throw new Error('Upload failed')
       const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Upload failed')
       if (!data.url) throw new Error('No URL returned')
       setImageUrl(data.url)
-    } catch { setLocalPreview(null); alert('Photo upload failed. Check your connection and try again.') }
+    } catch (err: any) { setLocalPreview(null); alert(err?.message || 'Photo upload failed') }
     finally { setUploading(false) }
   }
 

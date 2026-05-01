@@ -15,15 +15,26 @@ cloudinary.config({
 const storage = multer.memoryStorage()
 const upload = multer({
   storage,
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+  limits: { fileSize: 30 * 1024 * 1024 }, // 30MB to handle HEIC
   fileFilter: (_req, file, cb) => {
-    const allowed = /\.(jpg|jpeg|png|gif|webp)$/i
-    cb(null, allowed.test(file.originalname))
+    // Accept any image MIME type — covers HEIC/HEIF from iOS camera roll
+    cb(null, file.mimetype.startsWith('image/'))
   },
 })
 
 router.post('/', authenticate, upload.single('file'), async (req: AuthRequest, res: Response) => {
-  if (!req.file) return res.status(400).json({ error: 'No file uploaded' })
+  if (!req.file) {
+    console.error('Upload: no file — mimetype may be blocked or form field missing')
+    return res.status(400).json({ error: 'No file received. Make sure you selected an image.' })
+  }
+
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME
+  const apiKey = process.env.CLOUDINARY_API_KEY
+  const apiSecret = process.env.CLOUDINARY_API_SECRET
+  if (!cloudName || !apiKey || !apiSecret) {
+    console.error('Cloudinary env vars missing:', { cloudName: !!cloudName, apiKey: !!apiKey, apiSecret: !!apiSecret })
+    return res.status(500).json({ error: 'Image storage not configured on server' })
+  }
 
   try {
     const result = await new Promise<any>((resolve, reject) => {
@@ -34,9 +45,9 @@ router.post('/', authenticate, upload.single('file'), async (req: AuthRequest, r
       stream.end(req.file!.buffer)
     })
     res.json({ url: result.secure_url, mediaType: 'photo' })
-  } catch (err) {
-    console.error('Cloudinary upload error:', err)
-    res.status(500).json({ error: 'Upload failed' })
+  } catch (err: any) {
+    console.error('Cloudinary upload error:', err?.message || err)
+    res.status(500).json({ error: `Upload failed: ${err?.message || 'unknown error'}` })
   }
 })
 
