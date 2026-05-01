@@ -64,6 +64,8 @@ export default function AthleteProfilePage() {
   const [activeTab, setActiveTab] = useState<Tab>('Posts')
   const [brokenMedia, setBrokenMedia] = useState<Set<string>>(new Set())
   const [avatarBroken, setAvatarBroken] = useState(false)
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   // Edit photo state
   const photoEditRef = useRef<HTMLInputElement>(null)
@@ -193,6 +195,19 @@ export default function AthleteProfilePage() {
       alert(err.message || 'Failed to delete stat')
     } finally {
       setDeletingStatId(null)
+    }
+  }
+
+  const handleDeletePost = async (id: string) => {
+    setDeletingId(id)
+    try {
+      await postApi.deletePost(id)
+      setPosts((prev) => prev.filter(p => p.id !== id))
+      setSelectedPost(null)
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete post')
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -488,7 +503,8 @@ export default function AthleteProfilePage() {
               return (
                 <div
                   key={post.id}
-                  className="aspect-square bg-gray-900 flex items-center justify-center relative overflow-hidden"
+                  className="aspect-square bg-gray-900 flex items-center justify-center relative overflow-hidden active:opacity-70"
+                  onClick={() => setSelectedPost(post)}
                 >
                   {showImg ? (
                     isVid ? (
@@ -560,7 +576,8 @@ export default function AthleteProfilePage() {
                 return (
                   <div
                     key={post.id}
-                    className="aspect-square bg-gray-900 flex items-center justify-center relative overflow-hidden"
+                    className="aspect-square bg-gray-900 flex items-center justify-center relative overflow-hidden active:opacity-70"
+                    onClick={() => setSelectedPost(post)}
                   >
                     {showImg ? (
                       isVid ? (
@@ -591,6 +608,38 @@ export default function AthleteProfilePage() {
       )}
 
       <div className="h-10" />
+
+      {/* Post action sheet */}
+      {selectedPost && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={() => setSelectedPost(null)}>
+          <div className="absolute inset-0 bg-black/60" />
+          <div className="relative bg-[#111113] rounded-t-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+            {/* Preview */}
+            <div className="w-full h-48 bg-gray-900 flex items-center justify-center overflow-hidden">
+              {selectedPost.mediaUrl && !brokenMedia.has(selectedPost.id) ? (
+                <img src={selectedPost.mediaUrl} alt="" className="w-full h-full object-cover" onError={() => setBrokenMedia(p => new Set([...p, selectedPost.id]))} />
+              ) : (
+                <p className="text-gray-500 text-sm px-6 text-center leading-snug">{selectedPost.text || 'No preview'}</p>
+              )}
+            </div>
+            <div className="px-4 pt-3 pb-10 space-y-1">
+              <button
+                onClick={() => handleDeletePost(selectedPost.id)}
+                disabled={deletingId === selectedPost.id}
+                className="w-full py-4 text-red-500 font-semibold text-base border-b border-gray-800 disabled:opacity-40"
+              >
+                {deletingId === selectedPost.id ? 'Deleting…' : 'Delete Post'}
+              </button>
+              <button
+                onClick={() => setSelectedPost(null)}
+                className="w-full py-4 text-gray-400 font-medium text-base"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats bottom sheet */}
       {statsSheet && (
