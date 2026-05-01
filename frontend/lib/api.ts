@@ -15,6 +15,7 @@ export interface AuthResponse {
 export interface AthleteProfile {
   id: string;
   slug?: string;
+  user?: { id: string };
   name: string;
   sport: string;
   position?: string;
@@ -79,9 +80,9 @@ export interface Post {
   createdAt: string;
   author?: {
     id: string;
-    athleteProfile?: { name: string; sport: string; profilePictureUrl?: string; schoolTeam?: string };
-    coachProfile?: { name: string; organization?: string };
-    brandProfile?: { name: string; organizationType?: string };
+    athleteProfile?: { id: string; name: string; sport: string; profilePictureUrl?: string; schoolTeam?: string };
+    coachProfile?: { id: string; name: string; organization?: string };
+    brandProfile?: { id: string; name: string; organizationType?: string };
   };
   likes?: Like[];
   comments?: Comment[];

@@ -375,6 +375,7 @@ function PostCard({ post, onLike, onSave, onComment, onShare }: {
   const likeCount = post._count?.likes ?? post.likes?.length ?? 0
   const commentCount = post._count?.comments ?? post.comments?.length ?? 0
   const isVideo = post.mediaType === 'video' || post.mediaUrl?.match(/\.(mp4|webm|ogg|mov)$/i)
+  const authorProfileId = post.author?.athleteProfile?.id
 
   const submitComment = () => {
     if (!commentText.trim()) return
@@ -388,12 +389,22 @@ function PostCard({ post, onLike, onSave, onComment, onShare }: {
       <div className="flex items-center gap-2.5 px-4 py-2.5">
         {/* Sport dot */}
         <div className="w-[3px] self-stretch rounded-full flex-shrink-0" style={{ background: sportDot(sport) }} />
-        <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${avatarGradient(name)} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>
-          {inits}
-        </div>
+        {authorProfileId ? (
+          <Link href={`/athlete/profile/${authorProfileId}`} className={`w-9 h-9 rounded-full bg-gradient-to-br ${avatarGradient(name)} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>
+            {inits}
+          </Link>
+        ) : (
+          <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${avatarGradient(name)} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>
+            {inits}
+          </div>
+        )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <p className="text-sm font-semibold text-white leading-tight">{name}</p>
+            {authorProfileId ? (
+              <Link href={`/athlete/profile/${authorProfileId}`} className="text-sm font-semibold text-white leading-tight">{name}</Link>
+            ) : (
+              <p className="text-sm font-semibold text-white leading-tight">{name}</p>
+            )}
             {sport && (
               <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${sportPill(sport)}`}>{sport}</span>
             )}
@@ -572,8 +583,18 @@ export default function FeedPage() {
   }
 
   const handleComment = async (postId: string, text: string) => {
-    try { await commentApi.addComment(postId, text); loadFeed() }
-    catch (err: any) { alert(err.message) }
+    // Optimistically add so the section stays open and feels instant
+    setPosts(prev => prev.map(p => p.id === postId ? {
+      ...p,
+      comments: [...(p.comments || []), {
+        id: `tmp-${Date.now()}`, userId: '', postId, text,
+        createdAt: new Date().toISOString(),
+        user: { id: '' },
+      } as Comment],
+      _count: { likes: p._count?.likes || 0, comments: (p._count?.comments || 0) + 1, saves: p._count?.saves || 0 },
+    } : p))
+    try { await commentApi.addComment(postId, text) }
+    catch (err: any) { alert(err.message); loadFeed() }
   }
 
   const handleShare = (post: Post) => setSharePost(post)

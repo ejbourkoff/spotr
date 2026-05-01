@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { postApi, athleteApi, likeApi, saveApi, messageApi, Post } from '@/lib/api'
+import Link from 'next/link'
+import { postApi, athleteApi, likeApi, saveApi, followApi, messageApi, Post } from '@/lib/api'
 import dynamic from 'next/dynamic'
 const MuxPlayer = dynamic(() => import('@mux/mux-player-react'), { ssr: false })
 
@@ -102,10 +103,10 @@ function initials(name: string) {
 }
 
 function getAuthor(reel: Post) {
-  if (reel.author?.athleteProfile) return { name: reel.author.athleteProfile.name, sport: reel.author.athleteProfile.sport, sub: '', isAthlete: true }
-  if (reel.author?.coachProfile) return { name: reel.author.coachProfile.name, sport: '', sub: reel.author.coachProfile.organization || '', isAthlete: false }
-  if (reel.author?.brandProfile) return { name: reel.author.brandProfile.name, sport: '', sub: reel.author.brandProfile.organizationType || '', isAthlete: false }
-  return { name: 'Unknown', sport: '', sub: '', isAthlete: false }
+  if (reel.author?.athleteProfile) return { name: reel.author.athleteProfile.name, sport: reel.author.athleteProfile.sport, sub: '', isAthlete: true, profileId: reel.author.athleteProfile.id }
+  if (reel.author?.coachProfile) return { name: reel.author.coachProfile.name, sport: '', sub: reel.author.coachProfile.organization || '', isAthlete: false, profileId: null }
+  if (reel.author?.brandProfile) return { name: reel.author.brandProfile.name, sport: '', sub: reel.author.brandProfile.organizationType || '', isAthlete: false, profileId: null }
+  return { name: 'Unknown', sport: '', sub: '', isAthlete: false, profileId: null }
 }
 
 function engagementScore(reel: Post) {
@@ -122,6 +123,8 @@ export default function ReelsPage() {
   const [activeTab, setActiveTab] = useState('Trending')
   const [viewerSport, setViewerSport] = useState<string | null>(null)
   const [shareReel, setShareReel] = useState<Post | null>(null)
+  const [followedIds, setFollowedIds] = useState<Set<string>>(new Set())
+  const [followLoading, setFollowLoading] = useState<string | null>(null)
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({})
   const touchStartY = useRef<number | null>(null)
 
@@ -194,6 +197,21 @@ export default function ReelsPage() {
       }
       setAllReels((prev) => prev.map((r) => r.id === reelId ? { ...r, isSaved: !r.isSaved } : r))
     } catch {}
+  }
+
+  const handleFollow = async (userId: string) => {
+    if (followLoading) return
+    setFollowLoading(userId)
+    try {
+      if (followedIds.has(userId)) {
+        await followApi.unfollowUser(userId)
+        setFollowedIds(prev => { const s = new Set(prev); s.delete(userId); return s })
+      } else {
+        await followApi.followUser(userId)
+        setFollowedIds(prev => new Set([...prev, userId]))
+      }
+    } catch {}
+    setFollowLoading(null)
   }
 
   const goNext = useCallback(() => {
@@ -395,18 +413,35 @@ export default function ReelsPage() {
 
           {/* Player row */}
           <div className="flex items-end gap-3 mb-2">
-            <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${avatarGradient(author.name)} flex items-center justify-center text-white text-sm font-black flex-shrink-0 border-2 border-white/10`}>
-              {initials(author.name)}
-            </div>
+            {author.profileId ? (
+              <Link href={`/athlete/profile/${author.profileId}`} className={`w-12 h-12 rounded-full bg-gradient-to-br ${avatarGradient(author.name)} flex items-center justify-center text-white text-sm font-black flex-shrink-0 border-2 border-white/10`}>
+                {initials(author.name)}
+              </Link>
+            ) : (
+              <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${avatarGradient(author.name)} flex items-center justify-center text-white text-sm font-black flex-shrink-0 border-2 border-white/10`}>
+                {initials(author.name)}
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-white font-black text-[15px] truncate">{author.name}</span>
-                <button
-                  className="flex-shrink-0 text-[10px] font-black px-2.5 py-0.5 rounded-full border"
-                  style={{ color: BRAND_GREEN, borderColor: `${BRAND_GREEN}55`, background: `${BRAND_GREEN}11` }}
-                >
-                  + Follow
-                </button>
+                {author.profileId ? (
+                  <Link href={`/athlete/profile/${author.profileId}`} className="text-white font-black text-[15px] truncate">{author.name}</Link>
+                ) : (
+                  <span className="text-white font-black text-[15px] truncate">{author.name}</span>
+                )}
+                {currentReel.authorId && (
+                  <button
+                    onClick={() => handleFollow(currentReel.authorId)}
+                    disabled={!!followLoading}
+                    className="flex-shrink-0 text-[10px] font-black px-2.5 py-0.5 rounded-full border transition-all"
+                    style={followedIds.has(currentReel.authorId)
+                      ? { color: 'rgba(255,255,255,0.5)', borderColor: 'rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.05)' }
+                      : { color: BRAND_GREEN, borderColor: `${BRAND_GREEN}55`, background: `${BRAND_GREEN}11` }
+                    }
+                  >
+                    {followedIds.has(currentReel.authorId) ? 'Following' : '+ Follow'}
+                  </button>
+                )}
               </div>
               {author.sub && <p className="text-[11px] text-gray-500 mt-0.5 truncate">{author.sub}</p>}
             </div>

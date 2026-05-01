@@ -140,13 +140,13 @@ router.get('/feed', authenticate, async (req: AuthRequest, res: Response) => {
     const followingIds = follows.map((f) => f.followingId);
     followingIds.push(userId);
 
-    // If user follows no one, show all posts (discovery mode for new users)
-    const feedFilter = followingIds.length > 1
+    // Always include own posts; when following nobody show everyone (discovery)
+    const authorFilter = followingIds.length > 1
       ? { authorId: { in: followingIds } }
       : {}
 
     const posts = await prisma.post.findMany({
-      where: feedFilter,
+      where: { ...authorFilter, isStory: false, isReel: false },
       include: {
         author: {
           include: {
@@ -361,6 +361,32 @@ router.get('/user/:userId', async (req: AuthRequest, res: Response) => {
   }
 });
 
+// Get stories — MUST be before /:id or Express matches 'stories' as an id
+router.get('/stories', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const now = new Date();
+    const stories = await prisma.post.findMany({
+      where: { isStory: true, storyExpiresAt: { gt: now } },
+      include: {
+        author: {
+          include: {
+            athleteProfile: { select: { id: true, name: true, sport: true } },
+            coachProfile:   { select: { id: true, name: true, organization: true } },
+            brandProfile:   { select: { id: true, name: true, organizationType: true } },
+          },
+        },
+        _count: { select: { likes: true, comments: true, saves: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 30,
+    });
+    res.json({ stories });
+  } catch (error) {
+    console.error('Get stories error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get single post
 router.get('/:id', async (req: AuthRequest, res: Response) => {
   try {
@@ -463,46 +489,6 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
     res.json({ post: { ...post, isLiked, isSaved } });
   } catch (error) {
     console.error('Get post error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Get stories (posts where isStory=true and not expired)
-router.get('/stories', authenticate, async (req: AuthRequest, res: Response) => {
-  try {
-    const userId = req.userId!;
-    const now = new Date();
-
-    const stories = await prisma.post.findMany({
-      where: {
-        isStory: true,
-        storyExpiresAt: { gt: now },
-      },
-      include: {
-        author: {
-          include: {
-            athleteProfile: {
-              select: { id: true, name: true, sport: true },
-            },
-            coachProfile: {
-              select: { id: true, name: true, organization: true },
-            },
-            brandProfile: {
-              select: { id: true, name: true, organizationType: true },
-            },
-          },
-        },
-        _count: {
-          select: { likes: true, comments: true, saves: true },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 30,
-    });
-
-    res.json({ stories });
-  } catch (error) {
-    console.error('Get stories error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
