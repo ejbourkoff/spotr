@@ -52,6 +52,182 @@ const PersonIcon = () => (
 
 type Tab = 'Posts' | 'Stats' | 'Highlights'
 
+// ── Post detail bottom sheet ───────────────────────────────────────────────────
+function PostDetailSheet({ post, onClose, onDeleted }: {
+  post: Post
+  onClose: () => void
+  onDeleted: (id: string) => void
+}) {
+  const [fullPost, setFullPost] = useState<Post>(post)
+  const [commentText, setCommentText] = useState('')
+  const [submittingComment, setSubmittingComment] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    fetch(`${API_BASE}/posts/${post.id}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(data => { if (data.post) setFullPost(data.post) })
+      .catch(() => {})
+  }, [post.id])
+
+  const handleLike = async () => {
+    const liked = fullPost.isLiked
+    setFullPost(prev => ({
+      ...prev,
+      isLiked: !liked,
+      _count: { ...prev._count!, likes: (prev._count?.likes || 0) + (liked ? -1 : 1) },
+    }))
+    try {
+      const token = localStorage.getItem('token')
+      await fetch(`${API_BASE}/likes/${fullPost.id}`, {
+        method: liked ? 'DELETE' : 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+    } catch {}
+  }
+
+  const handleComment = async () => {
+    if (!commentText.trim() || submittingComment) return
+    setSubmittingComment(true)
+    const text = commentText.trim()
+    setCommentText('')
+    setFullPost(prev => ({
+      ...prev,
+      comments: [...(prev.comments || []), {
+        id: `tmp-${Date.now()}`, userId: '', postId: prev.id, text,
+        createdAt: new Date().toISOString(), user: { id: '' },
+      } as any],
+      _count: { ...prev._count!, comments: (prev._count?.comments || 0) + 1 },
+    }))
+    try {
+      const token = localStorage.getItem('token')
+      await fetch(`${API_BASE}/comments`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postId: fullPost.id, text }),
+      })
+    } catch {}
+    setSubmittingComment(false)
+  }
+
+  const handleDelete = async () => {
+    if (!confirmDelete) { setConfirmDelete(true); return }
+    setDeleting(true)
+    try {
+      const token = localStorage.getItem('token')
+      await fetch(`${API_BASE}/posts/${fullPost.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      onDeleted(fullPost.id)
+    } catch {
+      setDeleting(false)
+      setConfirmDelete(false)
+    }
+  }
+
+  const likeCount = fullPost._count?.likes ?? 0
+  const comments = fullPost.comments || []
+  const isVideo = fullPost.mediaType === 'video' || fullPost.isReel
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+      <div
+        className="relative w-full bg-[#111113] rounded-t-2xl max-h-[90vh] flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Handle */}
+        <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+          <div className="w-10 h-1 rounded-full bg-gray-700" />
+        </div>
+
+        <div className="overflow-y-auto flex-1 pb-4">
+          {/* Media */}
+          {fullPost.mediaUrl && (
+            <div className="w-full bg-black">
+              {isVideo ? (
+                <video src={fullPost.mediaUrl} controls playsInline className="w-full max-h-72 object-contain" />
+              ) : (
+                <img src={fullPost.mediaUrl} alt="" className="w-full max-h-72 object-contain" />
+              )}
+            </div>
+          )}
+
+          {/* Caption */}
+          {fullPost.text && (
+            <p className="px-4 pt-3 pb-2 text-sm text-gray-200 leading-relaxed">{fullPost.text}</p>
+          )}
+
+          {/* Like row */}
+          <div className="px-4 pb-3 flex items-center gap-3 border-b border-gray-800">
+            <button
+              onClick={handleLike}
+              className={`flex items-center gap-1.5 transition-colors ${fullPost.isLiked ? 'text-red-500' : 'text-gray-500'}`}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill={fullPost.isLiked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+              <span className="text-sm font-medium">{likeCount > 0 ? likeCount : ''}</span>
+            </button>
+            <span className="text-xs text-gray-600">{likeCount === 1 ? '1 like' : likeCount > 1 ? `${likeCount} likes` : 'Be the first to like'}</span>
+          </div>
+
+          {/* Comments */}
+          <div className="px-4 pt-3 space-y-3">
+            {comments.length === 0 && (
+              <p className="text-xs text-gray-600 text-center py-2">No comments yet</p>
+            )}
+            {comments.map((c: any) => {
+              const cn = c.user?.athleteProfile?.name || c.user?.coachProfile?.name || c.user?.brandProfile?.name || 'Unknown'
+              return (
+                <div key={c.id} className="flex gap-2.5">
+                  <div className="w-7 h-7 rounded-full bg-gray-800 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                    {cn[0]?.toUpperCase()}
+                  </div>
+                  <div className="bg-gray-800/60 rounded-2xl px-3 py-2 flex-1">
+                    <span className="text-xs font-semibold text-gray-200">{cn} </span>
+                    <span className="text-xs text-gray-400">{c.text}</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Comment input */}
+        <div className="flex-shrink-0 px-4 py-3 border-t border-gray-800 flex gap-2">
+          <input
+            value={commentText}
+            onChange={e => setCommentText(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleComment() }}
+            placeholder="Add a comment…"
+            className="flex-1 text-sm bg-gray-900 border border-gray-800 text-white placeholder-gray-600 rounded-full px-4 py-2 outline-none focus:border-[#00E87A]"
+          />
+          <button onClick={handleComment} disabled={!commentText.trim() || submittingComment} className="text-[#00E87A] text-sm font-bold disabled:opacity-40 px-1">Post</button>
+        </div>
+
+        {/* Delete button */}
+        <div className="flex-shrink-0 px-4 pb-10">
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className={`w-full py-3 rounded-xl text-sm font-bold transition-all ${
+              confirmDelete
+                ? 'bg-red-500 text-white'
+                : 'bg-red-500/10 border border-red-500/20 text-red-400'
+            } disabled:opacity-50`}
+          >
+            {deleting ? 'Deleting…' : confirmDelete ? 'Tap again to confirm delete' : 'Delete Post'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function AthleteProfilePage() {
   const router = useRouter()
   const [profile, setProfile] = useState<AthleteProfile | null>(null)
@@ -198,17 +374,9 @@ export default function AthleteProfilePage() {
     }
   }
 
-  const handleDeletePost = async (id: string) => {
-    setDeletingId(id)
-    try {
-      await postApi.deletePost(id)
-      setPosts((prev) => prev.filter(p => p.id !== id))
-      setSelectedPost(null)
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete post')
-    } finally {
-      setDeletingId(null)
-    }
+  const handleDeletePost = (id: string) => {
+    setPosts((prev) => prev.filter(p => p.id !== id))
+    setSelectedPost(null)
   }
 
   if (loading) {
@@ -231,7 +399,8 @@ export default function AthleteProfilePage() {
   const avatarGrad = SPORT_AVATAR[profile.sport] || DEFAULT_AVATAR
   const ins = initials(profile.name)
   const stats = profile.stats || []
-  const highlightPosts = posts.filter(p => (p as any).isHighlight)
+  const gridPosts = posts.filter(p => !p.isStory)
+  const highlightPosts = posts.filter(p => (p as any).isHighlight && !p.isStory)
 
   if (editing) {
     return (
@@ -495,9 +664,9 @@ export default function AthleteProfilePage() {
 
       {/* Tab content */}
       {activeTab === 'Posts' && (
-        posts.length > 0 ? (
+        gridPosts.length > 0 ? (
           <div className="grid grid-cols-3 gap-0.5">
-            {posts.map((post) => {
+            {gridPosts.map((post) => {
               const showImg = post.mediaUrl && !brokenMedia.has(post.id)
               const isVid = post.mediaType === 'video' || post.isReel
               return (
@@ -609,36 +778,13 @@ export default function AthleteProfilePage() {
 
       <div className="h-10" />
 
-      {/* Post action sheet */}
+      {/* Post detail sheet */}
       {selectedPost && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={() => setSelectedPost(null)}>
-          <div className="absolute inset-0 bg-black/60" />
-          <div className="relative bg-[#111113] rounded-t-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-            {/* Preview */}
-            <div className="w-full h-48 bg-gray-900 flex items-center justify-center overflow-hidden">
-              {selectedPost.mediaUrl && !brokenMedia.has(selectedPost.id) ? (
-                <img src={selectedPost.mediaUrl} alt="" className="w-full h-full object-cover" onError={() => setBrokenMedia(p => new Set([...p, selectedPost.id]))} />
-              ) : (
-                <p className="text-gray-500 text-sm px-6 text-center leading-snug">{selectedPost.text || 'No preview'}</p>
-              )}
-            </div>
-            <div className="px-4 pt-3 pb-10 space-y-1">
-              <button
-                onClick={() => handleDeletePost(selectedPost.id)}
-                disabled={deletingId === selectedPost.id}
-                className="w-full py-4 text-red-500 font-semibold text-base border-b border-gray-800 disabled:opacity-40"
-              >
-                {deletingId === selectedPost.id ? 'Deleting…' : 'Delete Post'}
-              </button>
-              <button
-                onClick={() => setSelectedPost(null)}
-                className="w-full py-4 text-gray-400 font-medium text-base"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+        <PostDetailSheet
+          post={selectedPost}
+          onClose={() => setSelectedPost(null)}
+          onDeleted={handleDeletePost}
+        />
       )}
 
       {/* Stats bottom sheet */}

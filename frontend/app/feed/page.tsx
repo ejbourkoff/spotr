@@ -103,14 +103,32 @@ function StoryViewer({ stories, startIndex, onClose }: {
 }) {
   const [current, setCurrent] = useState(startIndex)
   const [progress, setProgress] = useState(0)
+  const [paused, setPaused] = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const progressRef = useRef(0)
+  const pausedRef = useRef(false)
+  const touchStartRef = useRef<number>(0)
   const DURATION = 5000
 
   useEffect(() => {
     setProgress(0)
+    progressRef.current = 0
     const start = Date.now()
+    let pausedAt = 0
+    let pausedTotal = 0
+
     timerRef.current = setInterval(() => {
-      const pct = Math.min(((Date.now() - start) / DURATION) * 100, 100)
+      if (pausedRef.current) {
+        if (pausedAt === 0) pausedAt = Date.now()
+        return
+      }
+      if (pausedAt > 0) {
+        pausedTotal += Date.now() - pausedAt
+        pausedAt = 0
+      }
+      const elapsed = Date.now() - start - pausedTotal
+      const pct = Math.min((elapsed / DURATION) * 100, 100)
+      progressRef.current = pct
       setProgress(pct)
       if (pct >= 100) {
         if (current < stories.length - 1) setCurrent(c => c + 1)
@@ -129,6 +147,29 @@ function StoryViewer({ stories, startIndex, onClose }: {
   const name = authorName(story)
   const inits = authorInitials(story)
 
+  const handleTouchStart = () => {
+    touchStartRef.current = Date.now()
+    pausedRef.current = true
+    setPaused(true)
+  }
+
+  const handleTouchEndLeft = () => {
+    const held = Date.now() - touchStartRef.current
+    pausedRef.current = false
+    setPaused(false)
+    if (held < 200 && current > 0) setCurrent(c => c - 1)
+  }
+
+  const handleTouchEndRight = () => {
+    const held = Date.now() - touchStartRef.current
+    pausedRef.current = false
+    setPaused(false)
+    if (held < 200) {
+      if (current < stories.length - 1) setCurrent(c => c + 1)
+      else onClose()
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 bg-black touch-none">
       {/* Background */}
@@ -141,6 +182,17 @@ function StoryViewer({ stories, startIndex, onClose }: {
       <div className="absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
       {/* Bottom scrim */}
       <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
+
+      {/* Pause indicator */}
+      {paused && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="w-14 h-14 rounded-full bg-black/50 flex items-center justify-center">
+            <svg width="22" height="22" fill="white" viewBox="0 0 24 24">
+              <rect x="5" y="4" width="4" height="16" rx="1" /><rect x="15" y="4" width="4" height="16" rx="1" />
+            </svg>
+          </div>
+        </div>
+      )}
 
       {/* Progress bars */}
       <div className="absolute top-0 inset-x-0 flex gap-1 px-2 pt-12">
@@ -177,10 +229,20 @@ function StoryViewer({ stories, startIndex, onClose }: {
         </div>
       )}
 
-      {/* Tap zones — left 35% goes back, right 65% goes forward */}
+      {/* Tap zones — left 35% goes back, right 65% goes forward; hold pauses */}
       <div className="absolute inset-0 flex" style={{ paddingTop: 80 }}>
-        <div className="flex-[35] h-full" onTouchEnd={() => { if (current > 0) setCurrent(c => c - 1) }} onClick={() => { if (current > 0) setCurrent(c => c - 1) }} />
-        <div className="flex-[65] h-full" onTouchEnd={() => { if (current < stories.length - 1) setCurrent(c => c + 1); else onClose() }} onClick={() => { if (current < stories.length - 1) setCurrent(c => c + 1); else onClose() }} />
+        <div
+          className="flex-[35] h-full"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEndLeft}
+          onClick={() => { if (current > 0) setCurrent(c => c - 1) }}
+        />
+        <div
+          className="flex-[65] h-full"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEndRight}
+          onClick={() => { if (current < stories.length - 1) setCurrent(c => c + 1); else onClose() }}
+        />
       </div>
     </div>
   )
