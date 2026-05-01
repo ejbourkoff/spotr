@@ -95,15 +95,106 @@ const VideoIcon = () => (
   </svg>
 )
 
+// ── Story viewer ──────────────────────────────────────────────────────────────
+function StoryViewer({ stories, startIndex, onClose }: {
+  stories: Post[]
+  startIndex: number
+  onClose: () => void
+}) {
+  const [current, setCurrent] = useState(startIndex)
+  const [progress, setProgress] = useState(0)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const DURATION = 5000
+
+  useEffect(() => {
+    setProgress(0)
+    const start = Date.now()
+    timerRef.current = setInterval(() => {
+      const pct = Math.min(((Date.now() - start) / DURATION) * 100, 100)
+      setProgress(pct)
+      if (pct >= 100) {
+        if (current < stories.length - 1) setCurrent(c => c + 1)
+        else onClose()
+      }
+    }, 50)
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  }, [current, stories.length, onClose])
+
+  const story = stories[current]
+  if (!story) return null
+
+  const name = authorName(story)
+  const inits = authorInitials(story)
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black touch-none">
+      {/* Background */}
+      {story.mediaUrl
+        ? <img src={story.mediaUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        : <div className="absolute inset-0 bg-gradient-to-br from-gray-900 to-black" />
+      }
+
+      {/* Top scrim */}
+      <div className="absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
+      {/* Bottom scrim */}
+      <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
+
+      {/* Progress bars */}
+      <div className="absolute top-0 inset-x-0 flex gap-1 px-2 pt-12">
+        {stories.map((_, i) => (
+          <div key={i} className="h-[2px] flex-1 bg-white/30 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-white rounded-full"
+              style={{ width: i < current ? '100%' : i === current ? `${progress}%` : '0%', transition: i === current ? 'none' : undefined }}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Author row */}
+      <div className="absolute top-14 inset-x-0 flex items-center gap-2.5 px-4">
+        <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${avatarGradient(name)} flex items-center justify-center text-white text-xs font-bold ring-2 ring-white/40 flex-shrink-0`}>
+          {inits}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-white text-sm font-bold leading-tight drop-shadow truncate">{name}</p>
+          <p className="text-white/60 text-[11px]">{timeAgo(story.createdAt)}</p>
+        </div>
+        <button onTouchEnd={onClose} onClick={onClose} className="w-9 h-9 flex items-center justify-center text-white/80 flex-shrink-0">
+          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Text overlay */}
+      {story.text && (
+        <div className="absolute inset-x-4 bottom-24 flex items-center justify-center">
+          <p className="text-white text-lg font-bold drop-shadow-lg text-center leading-snug">{story.text}</p>
+        </div>
+      )}
+
+      {/* Tap zones — left 35% goes back, right 65% goes forward */}
+      <div className="absolute inset-0 flex" style={{ paddingTop: 80 }}>
+        <div className="flex-[35] h-full" onTouchEnd={() => { if (current > 0) setCurrent(c => c - 1) }} onClick={() => { if (current > 0) setCurrent(c => c - 1) }} />
+        <div className="flex-[65] h-full" onTouchEnd={() => { if (current < stories.length - 1) setCurrent(c => c + 1); else onClose() }} onClick={() => { if (current < stories.length - 1) setCurrent(c => c + 1); else onClose() }} />
+      </div>
+    </div>
+  )
+}
+
 // ── Stories row ───────────────────────────────────────────────────────────────
-function StoriesRow({ stories }: { stories: Post[] }) {
+function StoriesRow({ stories, onOpenStory }: { stories: Post[]; onOpenStory: (index: number) => void }) {
   const seen = new Set<string>()
-  const authors = stories.filter((p) => {
+  // Build list of {post, firstIndexInStories} deduplicated by author
+  const authors: { post: Post; storyIndex: number }[] = []
+  stories.forEach((p, i) => {
     const name = authorName(p)
-    if (seen.has(name)) return false
-    seen.add(name)
-    return true
-  }).slice(0, 7)
+    if (!seen.has(name)) {
+      seen.add(name)
+      authors.push({ post: p, storyIndex: i })
+    }
+  })
 
   return (
     <div className="flex gap-3 px-4 py-3 overflow-x-auto scrollbar-hide border-b border-gray-800/60">
@@ -116,19 +207,23 @@ function StoriesRow({ stories }: { stories: Post[] }) {
         </div>
         <span className="text-[10px] text-gray-500 max-w-[54px] text-center truncate">Your Story</span>
       </Link>
-      {authors.map((post) => {
+      {authors.slice(0, 7).map(({ post, storyIndex }) => {
         const name = authorName(post)
         const inits = authorInitials(post)
         const firstName = name.split(' ')[0]
         return (
-          <div key={post.id} className="flex flex-col items-center gap-1.5 flex-shrink-0">
+          <button
+            key={post.id}
+            onClick={() => onOpenStory(storyIndex)}
+            className="flex flex-col items-center gap-1.5 flex-shrink-0"
+          >
             <div className="w-[58px] h-[58px] rounded-full p-[2px]" style={{ background: 'linear-gradient(135deg, #00E87A, #009950)' }}>
               <div className={`w-full h-full rounded-full bg-gradient-to-br ${avatarGradient(name)} flex items-center justify-center text-white text-base font-bold border-2 border-gray-950`}>
                 {inits}
               </div>
             </div>
             <span className="text-[10px] text-gray-400 max-w-[54px] text-center truncate">{firstName}</span>
-          </div>
+          </button>
         )
       })}
     </div>
@@ -546,6 +641,7 @@ export default function FeedPage() {
   const [stories, setStories] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
   const [sharePost, setSharePost] = useState<Post | null>(null)
+  const [storyIndex, setStoryIndex] = useState<number | null>(null)
 
   const loadFeed = useCallback(async () => {
     try {
@@ -610,8 +706,11 @@ export default function FeedPage() {
   return (
     <main className="bg-gray-950">
       {sharePost && <ShareSheet post={sharePost} onClose={() => setSharePost(null)} />}
+      {storyIndex !== null && stories.length > 0 && (
+        <StoryViewer stories={stories} startIndex={storyIndex} onClose={() => setStoryIndex(null)} />
+      )}
       <div className="max-w-[480px] mx-auto">
-        <StoriesRow stories={stories} />
+        <StoriesRow stories={stories} onOpenStory={setStoryIndex} />
         <Composer onPost={(post) => setPosts((prev) => [post, ...prev])} />
 
         {posts.length === 0 && reels.length === 0 && (
