@@ -428,6 +428,66 @@ router.get('/stories', authenticate, async (req: AuthRequest, res: Response) => 
   }
 });
 
+// Trending posts — top engagement in last 7 days
+router.get('/trending', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const { limit = '20' } = req.query;
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const posts = await prisma.post.findMany({
+      where: { isStory: false, isReel: false, createdAt: { gte: sevenDaysAgo } },
+      include: {
+        author: {
+          include: {
+            athleteProfile: { select: { id: true, name: true, sport: true } },
+            coachProfile:   { select: { id: true, name: true, organization: true } },
+            brandProfile:   { select: { id: true, name: true, organizationType: true } },
+          },
+        },
+        comments: {
+          include: {
+            user: {
+              include: {
+                athleteProfile: { select: { name: true } },
+                coachProfile:   { select: { name: true } },
+                brandProfile:   { select: { name: true } },
+              },
+            },
+          },
+          orderBy: { createdAt: 'asc' },
+        },
+        _count: { select: { likes: true, comments: true, saves: true } },
+      },
+      orderBy: { likes: { _count: 'desc' } },
+      take: parseInt(limit as string) || 20,
+    });
+
+    const userLikedPostIds = await prisma.like.findMany({
+      where: { userId, postId: { in: posts.map((p) => p.id) } },
+      select: { postId: true },
+    });
+    const userSavedPostIds = await prisma.save.findMany({
+      where: { userId, postId: { in: posts.map((p) => p.id) } },
+      select: { postId: true },
+    });
+
+    const likedSet = new Set(userLikedPostIds.map((l) => l.postId));
+    const savedSet = new Set(userSavedPostIds.map((s) => s.postId));
+
+    const postsWithStatus = posts.map((p) => ({
+      ...p,
+      isLiked: likedSet.has(p.id),
+      isSaved: savedSet.has(p.id),
+    }));
+
+    res.json({ posts: postsWithStatus });
+  } catch (error) {
+    console.error('Get trending posts error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get single post
 router.get('/:id', async (req: AuthRequest, res: Response) => {
   try {

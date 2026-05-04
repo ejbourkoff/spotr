@@ -23,8 +23,10 @@ router.get('/by-slug/:slug', async (req: AuthRequest, res: Response) => {
 });
 
 // List athletes — returns SearchUser format for iOS Discover
-router.get('/', async (req: AuthRequest, res: Response) => {
+// Optionally authenticated: if Bearer token present, annotates with iFollow
+router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
+    const currentUserId = req.userId!;
     const { sport, limit = '50', offset = '0' } = req.query;
 
     const where: any = { athleteProfile: { isNot: null } };
@@ -46,7 +48,15 @@ router.get('/', async (req: AuthRequest, res: Response) => {
       orderBy: { createdAt: 'desc' },
     });
 
-    res.json({ athletes: users });
+    // Annotate with follow status
+    const followingRecords = await prisma.follow.findMany({
+      where: { followerId: currentUserId, followingId: { in: users.map(u => u.id) } },
+      select: { followingId: true },
+    });
+    const iFollowSet = new Set(followingRecords.map(f => f.followingId));
+    const result = users.map(u => ({ ...u, iFollow: iFollowSet.has(u.id) }));
+
+    res.json({ athletes: result });
   } catch (error) {
     console.error('List athletes error:', error);
     res.status(500).json({ error: 'Internal server error' });
