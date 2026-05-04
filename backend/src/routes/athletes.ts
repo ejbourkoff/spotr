@@ -4,41 +4,6 @@ import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
 
 const router = express.Router();
 
-// Get athlete profile (public)
-router.get('/:id', async (req: AuthRequest, res: Response) => {
-  try {
-    const { id } = req.params;
-
-    const profile = await prisma.athleteProfile.findUnique({
-      where: { id },
-      include: {
-        stats: {
-          orderBy: { season: 'desc' },
-        },
-        highlights: {
-          orderBy: { createdAt: 'desc' },
-        },
-        user: {
-          select: {
-            id: true,
-            email: true,
-            avatarUrl: true,
-          },
-        },
-      },
-    });
-
-    if (!profile) {
-      return res.status(404).json({ error: 'Athlete profile not found' });
-    }
-
-    res.json({ profile });
-  } catch (error) {
-    console.error('Get athlete error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
 // Get athlete profile by slug (public, no auth needed but token optional for email reveal)
 router.get('/by-slug/:slug', async (req: AuthRequest, res: Response) => {
   try {
@@ -311,6 +276,37 @@ router.post('/profile/highlights', authenticate, requireRole('ATHLETE'), async (
     res.status(201).json({ highlight });
   } catch (error) {
     console.error('Add highlight error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get athlete profile by athleteProfile.id — must be last (wildcard catches everything)
+router.get('/:id', async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const profile = await prisma.athleteProfile.findUnique({
+      where: { id },
+      include: {
+        stats: { orderBy: { season: 'desc' } },
+        highlights: { orderBy: { createdAt: 'desc' } },
+        user: {
+          select: {
+            id: true,
+            email: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    });
+
+    if (!profile) {
+      return res.status(404).json({ error: 'Athlete profile not found' });
+    }
+
+    res.json({ profile });
+  } catch (error) {
+    console.error('Get athlete error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
