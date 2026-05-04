@@ -518,6 +518,59 @@ router.get('/trending', authenticate, async (req: AuthRequest, res: Response) =>
   }
 });
 
+// Record a story view — POST /api/posts/:postId/view
+router.post('/:postId/view', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { postId } = req.params;
+    const viewerId = req.userId!;
+
+    const post = await prisma.post.findUnique({ where: { id: postId }, select: { isStory: true, authorId: true } });
+    if (!post || !post.isStory) return res.status(404).json({ error: 'Story not found' });
+    if (post.authorId === viewerId) return res.json({ ok: true }); // Don't count author's own view
+
+    await prisma.storyView.upsert({
+      where: { storyId_viewerId: { storyId: postId, viewerId } },
+      create: { storyId: postId, viewerId },
+      update: {},
+    });
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get story viewers — GET /api/posts/:postId/story-views (author only)
+router.get('/:postId/story-views', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { postId } = req.params;
+    const userId = req.userId!;
+
+    const post = await prisma.post.findUnique({ where: { id: postId }, select: { authorId: true } });
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+    if (post.authorId !== userId) return res.status(403).json({ error: 'Forbidden' });
+
+    const views = await prisma.storyView.findMany({
+      where: { storyId: postId },
+      include: {
+        viewer: {
+          select: {
+            id: true,
+            avatarUrl: true,
+            athleteProfile: { select: { name: true } },
+            coachProfile:   { select: { name: true } },
+            brandProfile:   { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json({ views, count: views.length });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get single post
 router.get('/:id', async (req: AuthRequest, res: Response) => {
   try {

@@ -1,6 +1,7 @@
 import express, { Response } from 'express';
 import prisma from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { createNotification } from './notifications';
 
 const router = express.Router();
 
@@ -107,6 +108,8 @@ router.post('/:userId/follow', authenticate, async (req: AuthRequest, res: Respo
         },
       },
     });
+
+    createNotification(targetUserId, followerId, 'follow');
 
     res.status(201).json({ follow });
   } catch (error: any) {

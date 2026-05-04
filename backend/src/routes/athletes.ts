@@ -299,6 +299,128 @@ router.post('/profile/highlights', authenticate, requireRole('ATHLETE'), async (
   }
 });
 
+// Record a profile view — POST /api/athletes/view/:userId
+router.post('/view/:userId', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const viewerId = req.userId!;
+    const { userId: profileUserId } = req.params;
+    if (viewerId === profileUserId) return res.json({ ok: true });
+
+    await prisma.profileView.create({
+      data: { profileUserId, viewerId },
+    });
+    res.json({ ok: true });
+  } catch {
+    res.json({ ok: true }); // non-fatal
+  }
+});
+
+// Get profile views (own only) — GET /api/athletes/profile-views
+router.get('/profile-views', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const { limit = '30' } = req.query;
+
+    const views = await prisma.profileView.findMany({
+      where: { profileUserId: userId },
+      include: {
+        viewer: {
+          select: {
+            id: true,
+            avatarUrl: true,
+            athleteProfile: { select: { name: true, sport: true } },
+            coachProfile:   { select: { name: true, organization: true } },
+            brandProfile:   { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: parseInt(limit as string),
+    });
+
+    res.json({ views, count: views.length });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// People you may know — GET /api/athletes/suggested
+// Returns users followed by people you follow (2nd degree), not already followed
+router.get('/suggested', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const { limit = '10' } = req.query;
+
+    // Get IDs of people I follow
+    const myFollowing = await prisma.follow.findMany({
+      where: { followerId: userId },
+      select: { followingId: true },
+    });
+    const myFollowingIds = myFollowing.map(f => f.followingId);
+
+    if (myFollowingIds.length === 0) {
+      // Cold start: return recent users
+      const recent = await prisma.user.findMany({
+        where: { id: { not: userId } },
+        select: {
+          id: true,
+          avatarUrl: true,
+          athleteProfile: { select: { name: true, sport: true } },
+          coachProfile:   { select: { name: true, organization: true } },
+          brandProfile:   { select: { name: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: parseInt(limit as string),
+      });
+      return res.json({ users: recent.map(u => ({ ...u, iFollow: false, mutualCount: 0 })) });
+    }
+
+    // Get 2nd-degree follows
+    const secondDegree = await prisma.follow.findMany({
+      where: {
+        followerId: { in: myFollowingIds },
+        followingId: { notIn: [...myFollowingIds, userId] },
+      },
+      select: { followingId: true },
+    });
+
+    // Count how many mutual connections each candidate has
+    const mutualMap = new Map<string, number>();
+    for (const { followingId } of secondDegree) {
+      mutualMap.set(followingId, (mutualMap.get(followingId) || 0) + 1);
+    }
+
+    const candidateIds = [...mutualMap.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, parseInt(limit as string))
+      .map(([id]) => id);
+
+    if (candidateIds.length === 0) return res.json({ users: [] });
+
+    const candidates = await prisma.user.findMany({
+      where: { id: { in: candidateIds } },
+      select: {
+        id: true,
+        avatarUrl: true,
+        athleteProfile: { select: { name: true, sport: true } },
+        coachProfile:   { select: { name: true, organization: true } },
+        brandProfile:   { select: { name: true } },
+      },
+    });
+
+    const result = candidates.map(u => ({
+      ...u,
+      iFollow: false,
+      mutualCount: mutualMap.get(u.id) || 0,
+    })).sort((a, b) => b.mutualCount - a.mutualCount);
+
+    res.json({ users: result });
+  } catch (error) {
+    console.error('Suggested users error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get athlete profile by athleteProfile.id — must be last (wildcard catches everything)
 router.get('/:id', async (req: AuthRequest, res: Response) => {
   try {

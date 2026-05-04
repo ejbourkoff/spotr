@@ -55,7 +55,7 @@ model User {
   athleteProfile AthleteProfile?
   coachProfile   CoachProfile?
   brandProfile   BrandProfile?
-  
+
   // Social media
   posts          Post[]
   likes          Like[]
@@ -63,9 +63,15 @@ model User {
   saves          Save[]
   followers      Follow[] @relation("Follower")
   following      Follow[] @relation("Following")
-  
+
   sentMessages   Message[] @relation("SentMessages")
   receivedMessages Message[] @relation("ReceivedMessages")
+
+  notifications         Notification[] @relation("NotificationRecipient")
+  triggeredNotifications Notification[] @relation("NotificationActor")
+  storyViews            StoryView[]
+  profileViewsReceived  ProfileView[] @relation("ProfileViewed")
+  profileViewsMade      ProfileView[] @relation("ProfileViewer")
 
   @@map("users")
 }
@@ -84,6 +90,7 @@ model AthleteProfile {
   height        String? // e.g., "6'2\""
   weight        Int? // in pounds
   bio           String? @db.Text
+  bioLink       String?
   hudlUrl       String?
   openToNIL     Boolean   @default(false)
   openToSemiProPro Boolean @default(false)
@@ -109,6 +116,8 @@ model CoachProfile {
   title         String?
   location      String?
   school        String?
+  bio           String?     @db.Text
+  bioLink       String?
   sport         String[]
   schoolLevel   SchoolLevel?
   statePrefs    String[]
@@ -128,6 +137,8 @@ model BrandProfile {
   name          String
   organizationType String? // e.g., "Collective", "Local Business", "Brand"
   location      String?
+  bio           String?   @db.Text
+  bioLink       String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -185,6 +196,7 @@ model Post {
   muxUploadId   String?
   muxAssetId    String?
   muxPlaybackId String?
+  highlightGroup String?  // for Highlights collections on profile
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -192,6 +204,9 @@ model Post {
   likes         Like[]
   comments      Comment[]
   saves         Save[]
+  storyViews    StoryView[]
+  notifications Notification[]
+  sharedInMessages Message[]
 
   @@index([authorId])
   @@index([isStory, isReel, createdAt])
@@ -323,15 +338,63 @@ model Message {
   id            String    @id @default(cuid())
   senderId      String
   receiverId    String
-  subject       String
+  subject       String    @default("")
   body          String    @db.Text
+  type          String    @default("text") // "text" | "shared_post"
+  sharedPostId  String?
   readAt        DateTime?
   createdAt     DateTime  @default(now())
 
   sender        User      @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
   receiver      User      @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  sharedPost    Post?     @relation(fields: [sharedPostId], references: [id], onDelete: SetNull)
 
+  @@index([senderId, receiverId])
   @@map("messages")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String   // recipient
+  actorId   String   // who triggered it
+  type      String   // "like" | "follow" | "comment" | "share" | "mention"
+  postId    String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user  User  @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor User  @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+  post  Post? @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@map("notifications")
+}
+
+model StoryView {
+  id        String   @id @default(cuid())
+  storyId   String
+  viewerId  String
+  createdAt DateTime @default(now())
+
+  story  Post @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  viewer User @relation(fields: [viewerId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, viewerId])
+  @@index([storyId])
+  @@map("story_views")
+}
+
+model ProfileView {
+  id            String   @id @default(cuid())
+  profileUserId String
+  viewerId      String
+  createdAt     DateTime @default(now())
+
+  profileUser User @relation("ProfileViewed", fields: [profileUserId], references: [id], onDelete: Cascade)
+  viewer      User @relation("ProfileViewer", fields: [viewerId], references: [id], onDelete: Cascade)
+
+  @@index([profileUserId])
+  @@map("profile_views")
 }
 
 model FeatureFlag {

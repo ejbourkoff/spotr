@@ -2,6 +2,7 @@ import express, { Response } from 'express';
 import prisma from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { commentLimiter } from '../middleware/rateLimiters';
+import { createNotification } from './notifications';
 
 const router = express.Router();
 
@@ -49,6 +50,8 @@ router.post('/:postId/comments', authenticate, commentLimiter, async (req: AuthR
         },
       },
     });
+
+    createNotification(post.authorId, userId, 'comment', postId);
 
     res.status(201).json({ comment });
   } catch (error) {
