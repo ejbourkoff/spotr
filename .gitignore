@@ -32,3 +32,6 @@ logfile
 # Prisma — keep migration files in git so Railway can run them
 # (do not exclude .sql files)
 .gstack/
+
+# Scraper output
+data/

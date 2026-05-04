@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kalshi NBA Edge Scanner</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2128;
+    --border: #30363d;
+    --green: #00e639;
+    --green-dim: #0a3a1a;
+    --yellow: #f0b429;
+    --yellow-dim: #3a2f00;
+    --red: #f85149;
+    --blue: #58a6ff;
+    --blue-dim: #0d2149;
+    --purple: #d2a8ff;
+    --purple-dim: #2d1a2e;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --radius: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; }
+
+  header { border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: var(--bg); z-index: 10; }
+  .logo { font-size: 18px; font-weight: 700; color: var(--green); letter-spacing: -0.5px; }
+  .logo span { color: var(--text); }
+  .header-meta { display: flex; gap: 12px; align-items: center; }
+  .badge { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; font-size: 12px; color: var(--muted); }
+  .badge.live { border-color: var(--green); color: var(--green); }
+  .scan-btn { background: var(--green); color: #000; border: none; border-radius: var(--radius); padding: 8px 18px; font-weight: 700; cursor: pointer; font-size: 13px; }
+  .scan-btn:hover { opacity: 0.85; }
+  .scan-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  main { max-width: 1300px; margin: 0 auto; padding: 20px 24px; }
+
+  .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 20px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+  .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px; }
+  .stat-value { font-size: 24px; font-weight: 700; }
+  .stat-value.green { color: var(--green); }
+  .stat-value.yellow { color: var(--yellow); }
+  .stat-value.blue { color: var(--blue); }
+  .stat-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .scan-status { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+  .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; flex-shrink: 0; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .pulse.idle { background: var(--muted); animation: none; }
+
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+  .tab { padding: 8px 16px; cursor: pointer; border-bottom: 2px solid transparent; color: var(--muted); font-size: 13px; font-weight: 500; transition: color 0.15s; }
+  .tab.active { border-bottom-color: var(--green); color: var(--text); }
+  .tab:hover { color: var(--text); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .section-title { font-size: 15px; font-weight: 600; }
+  .count-badge { background: var(--green-dim); color: var(--green); border-radius: 12px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
+  .count-badge.yellow { background: var(--yellow-dim); color: var(--yellow); }
+  .count-badge.muted { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+
+  /* Edge cards — more readable than dense table rows */
+  .edge-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .edge-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .edge-card.high { border-left: 3px solid var(--green); }
+  .edge-card.medium { border-left: 3px solid var(--yellow); }
+  .edge-card.low { border-left: 3px solid var(--muted); }
+
+  .edge-top { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
+  .edge-conf { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; border-radius: 4px; padding: 3px 7px; white-space: nowrap; }
+  .edge-conf.HIGH { background: var(--green-dim); color: var(--green); }
+  .edge-conf.MEDIUM { background: var(--yellow-dim); color: var(--yellow); }
+  .edge-conf.LOW { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+
+  .edge-main { flex: 1; min-width: 0; }
+  .edge-label { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .edge-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .edge-type { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; border-radius: 4px; padding: 2px 6px; white-space: nowrap; }
+  .edge-type.game { background: var(--blue-dim); color: var(--blue); }
+  .edge-type.series { background: var(--blue-dim); color: var(--blue); }
+  .edge-type.prop { background: #1a2a0d; color: #7ee787; }
+  .edge-type.champ,.edge-type.conf,.edge-type.finals { background: var(--purple-dim); color: var(--purple); }
+  .edge-type.combo,.edge-type.mve { background: #2a1a0d; color: #ffa657; }
+
+  .edge-date { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+  .edge-stats { display: flex; align-items: center; gap: 16px; }
+  .edge-stat { text-align: center; }
+  .edge-stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  .edge-stat-val { font-size: 15px; font-weight: 700; margin-top: 1px; }
+
+  .ev-pill { border-radius: 20px; padding: 4px 10px; font-size: 12px; font-weight: 700; }
+  .ev-high { background: var(--green-dim); color: var(--green); }
+  .ev-mid { background: var(--yellow-dim); color: var(--yellow); }
+  .ev-low { background: #1a1a2e; color: #8b8fff; }
+
+  .side-yes { color: var(--green); }
+  .side-no { color: #ff7b72; }
+
+  .gap-badge { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 2px 7px; font-size: 11px; font-weight: 600; color: var(--text); white-space: nowrap; }
+
+  .bet-btn { background: var(--green); color: #000; border: none; border-radius: 6px; padding: 5px 12px; font-weight: 700; font-size: 12px; white-space: nowrap; }
+
+  .edge-reasoning { padding: 8px 14px 10px; border-top: 1px solid var(--border); background: var(--surface2); font-size: 12px; color: var(--muted); }
+  .edge-reasoning strong { color: var(--text); }
+
+  .empty { text-align: center; padding: 48px; color: var(--muted); }
+  .empty-icon { font-size: 32px; margin-bottom: 8px; }
+
+  .history-grid { display: flex; flex-direction: column; gap: 8px; }
+  .history-row { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; display: flex; align-items: center; gap: 16px; font-size: 13px; }
+  .history-date { color: var(--muted); min-width: 180px; }
+
+  .footer { text-align: center; padding: 20px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--border); margin-top: 28px; }
+
+  #loading-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 100; align-items: center; justify-content: center; flex-direction: column; gap: 12px; }
+  #loading-overlay.show { display: flex; }
+  .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--green); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { color: var(--text); font-size: 14px; }
+
+  .bankroll-note { margin-left: auto; font-size: 12px; color: var(--muted); }
+
+  .no-edges-msg { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 32px; text-align: center; color: var(--muted); }
+  .no-edges-msg h3 { color: var(--text); margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-text">Running scanner... fetching Kalshi + sportsbooks</div>
+</div>
+
+<header>
+  <div class="logo">Kalshi<span>Edge</span></div>
+  <div class="header-meta">
+    <div class="badge" id="scan-time">Last scan: —</div>
+    <div class="badge live" id="market-count">— markets</div>
+    <button class="scan-btn" id="scan-btn" onclick="triggerScan()">⟳ Scan Now</button>
+  </div>
+</header>
+
+<main>
+  <div class="scan-status" id="scan-status">
+    <div class="pulse idle" id="pulse-dot"></div>
+    <span id="status-text">Loading latest scan...</span>
+  </div>
+
+  <div class="stats-row" id="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">HIGH Conf Bets</div>
+      <div class="stat-value green" id="s-actionable">—</div>
+      <div class="stat-sub">sportsbook confirmed</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Best EV Today</div>
+      <div class="stat-value yellow" id="s-best-ev">—</div>
+      <div class="stat-sub">top edge found</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Game Edges</div>
+      <div class="stat-value blue" id="s-games">—</div>
+      <div class="stat-sub">moneyline anchored</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Prop Edges</div>
+      <div class="stat-value" id="s-props">—</div>
+      <div class="stat-sub">sportsbook confirmed</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Markets Scanned</div>
+      <div class="stat-value" id="s-markets">—</div>
+      <div class="stat-sub">open NBA markets</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('bets')">Today's Bets</div>
+    <div class="tab" onclick="switchTab('parlays')">Parlays</div>
+    <div class="tab" onclick="switchTab('watchlist')">Watchlist</div>
+    <div class="tab" onclick="switchTab('history')">Scan History</div>
+    <div class="tab" onclick="switchTab('perf')">Performance</div>
+  </div>
+
+  <div class="tab-panel active" id="tab-bets">
+    <div class="section-header">
+      <div class="section-title">HIGH Confidence Edges</div>
+      <div class="count-badge" id="action-count">0</div>
+      <div class="bankroll-note">Bankroll: $<span id="bankroll">—</span></div>
+    </div>
+    <div id="bets-list">
+      <div class="empty"><div class="empty-icon">📡</div>Run a scan to see today's edges</div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-parlays">
+    <div class="section-header">
+      <div class="section-title">Parlay Combos</div>
+      <div class="count-badge" id="parlay-count">0</div>
+      <div class="bankroll-note">Independent bets only — no Kalshi native parlay</div>
+    </div>
+    <div id="parlay-list">
+      <div class="empty"><div class="empty-icon">🎲</div>Run a scan to see parlay recommendations</div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-watchlist">
+    <div class="section-header">
+      <div class="section-title">Watchlist — MEDIUM / LOW confidence</div>
+      <div class="count-badge yellow" id="watch-count">0</div>
+      <div class="bankroll-note" style="font-size:12px;color:var(--yellow)">Do not bet these without sportsbook confirmation</div>
+    </div>
+    <div id="watchlist-list">
+      <div class="empty"><div class="empty-icon">👀</div>No watchlist items</div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-history">
+    <div class="section-header">
+      <div class="section-title">Scan History</div>
+      <div class="count-badge muted" id="history-count">0 scans</div>
+    </div>
+    <div class="history-grid" id="history-list">
+      <div class="empty"><div class="empty-icon">📋</div>No history yet</div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-perf">
+    <div class="section-header"><div class="section-title">Performance</div></div>
+    <div id="perf-content">
+      <div class="empty"><div class="empty-icon">📊</div>Track outcomes to see performance analytics</div>
+    </div>
+  </div>
+</main>
+
+<div class="footer">Kalshi NBA Edge Scanner · HIGH confidence = sportsbook-anchored edges only · Next daily scan: 3 AM ET</div>
+
+<script>
+let currentEdges = [];
+
+async function loadLatest() {
+  try {
+    const r = await fetch('/api/latest');
+    if (r.status === 404) {
+      document.getElementById('status-text').textContent = 'No scan yet — click Scan Now to start';
+      return;
+    }
+    if (!r.ok) return;
+    const data = await r.json();
+    if (data.error) return;
+    renderScan(data);
+    const hi = (data.edges || []).filter(e => e.actionable).length;
+    document.getElementById('status-text').textContent = `Scan loaded · ${hi} HIGH confidence edges · auto-scans at 3 AM ET`;
+  } catch(e) {
+    document.getElementById('status-text').textContent = 'Click Scan Now to begin';
+  }
+}
+
+async function loadStatus() {
+  try {
+    const r = await fetch('/api/status');
+    const s = await r.json();
+    if (s.bankroll) document.getElementById('bankroll').textContent = s.bankroll.toLocaleString();
+  } catch(e) {}
+}
+
+async function triggerScan() {
+  const btn = document.getElementById('scan-btn');
+  btn.disabled = true;
+  btn.textContent = 'Scanning...';
+  document.getElementById('loading-overlay').classList.add('show');
+  document.getElementById('pulse-dot').classList.remove('idle');
+  document.getElementById('status-text').textContent = 'Scanning Kalshi + sportsbooks... this takes ~2 minutes';
+
+  try {
+    const r = await fetch('/api/scan', { method: 'POST' });
+    const data = await r.json();
+
+    if (r.status === 202) {
+      document.getElementById('status-text').textContent = 'Scan already running — checking back in a moment...';
+      await pollForResult();
+      return;
+    }
+
+    if (!r.ok || data.error) {
+      document.getElementById('status-text').textContent = `Error: ${data.error || data.message || 'unknown'}`;
+      return;
+    }
+
+    renderScan(data);
+    const hi = (data.edges || []).filter(e => e.actionable).length;
+    document.getElementById('status-text').textContent = `Scan complete · ${hi} HIGH confidence edges found`;
+    loadHistory();
+  } catch(e) {
+    document.getElementById('status-text').textContent = 'Network error — is the server running?';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⟳ Scan Now';
+    document.getElementById('loading-overlay').classList.remove('show');
+    document.getElementById('pulse-dot').classList.add('idle');
+  }
+}
+
+async function pollForResult(attempts = 0) {
+  if (attempts > 50) return;
+  await sleep(3000);
+  const status = await fetch('/api/status').then(r => r.json()).catch(() => ({}));
+  if (status.scanning) return pollForResult(attempts + 1);
+  await loadLatest();
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const str = iso.includes('Z') || iso.includes('+') ? iso : iso + 'Z';
+  const d = new Date(str);
+  return isNaN(d) ? iso : d.toLocaleString();
+}
+
+function renderScan(data) {
+  if (!data || !data.edges || !data.summary) return;
+  const { edges, summary, scanned_at, total_markets } = data;
+  currentEdges = edges;
+
+  document.getElementById('scan-time').textContent = 'Last scan: ' + fmtDate(scanned_at);
+  document.getElementById('market-count').textContent = (total_markets || edges.length) + ' markets';
+
+  document.getElementById('s-actionable').textContent = summary.actionable ?? 0;
+  document.getElementById('s-best-ev').textContent = (summary.top_ev ?? 0) + '%';
+  document.getElementById('s-games').textContent = summary.game_edges ?? 0;
+  document.getElementById('s-props').textContent = summary.prop_edges ?? 0;
+  document.getElementById('s-markets').textContent = total_markets ?? '—';
+
+  const actionable = edges.filter(e => e.actionable);
+  const watchlist  = edges.filter(e => !e.actionable && (e.best_ev > 0.01 || e.confidence === 'MEDIUM'));
+
+  document.getElementById('action-count').textContent = actionable.length;
+  document.getElementById('watch-count').textContent  = watchlist.length;
+
+  renderEdgeList('bets-list', actionable, true);
+  renderEdgeList('watchlist-list', watchlist, false);
+
+  const parlays = data.parlays || [];
+  document.getElementById('parlay-count').textContent = parlays.length;
+  renderParlays('parlay-list', parlays);
+}
+
+function renderEdgeList(containerId, edges, isBets) {
+  const wrap = document.getElementById(containerId);
+
+  if (!edges.length) {
+    if (isBets) {
+      wrap.innerHTML = `<div class="no-edges-msg">
+        <h3>No HIGH confidence edges right now</h3>
+        <p style="margin-top:8px">HIGH confidence requires a sportsbook line confirming the edge.<br>
+        Check the Watchlist tab for MEDIUM confidence signals, or run a fresh scan.</p>
+      </div>`;
+    } else {
+      wrap.innerHTML = `<div class="empty"><div class="empty-icon">👀</div>No watchlist items</div>`;
+    }
+    return;
+  }
+
+  wrap.innerHTML = `<div class="edge-list">${edges.map(e => renderEdgeCard(e, isBets)).join('')}</div>`;
+}
+
+function renderEdgeCard(e, showBetBtn) {
+  const ev = (e.best_ev * 100).toFixed(1);
+  const evClass = e.best_ev >= 0.07 ? 'ev-high' : e.best_ev >= 0.04 ? 'ev-mid' : 'ev-low';
+  const sideClass = e.best_side === 'YES' ? 'side-yes' : 'side-no';
+  const conf = e.confidence || 'LOW';
+  const type = e.market_type || 'prop';
+  const gameDate = e.game_date ? `📅 ${e.game_date}` : '';
+  const kalshiPct = Math.round((e.kalshi_implied || e.kalshi_price / 100) * 100);
+  const truePct  = Math.round((e.true_prob || 0) * 100);
+  const sbPct    = e.sb_prob ? Math.round(e.sb_prob * 100) : null;
+  const gapPp    = e.gap_pp ? e.gap_pp.toFixed(1) : '—';
+  const betSize  = e.bet_size_$ ? `$${Math.round(e.bet_size_$)}` : '—';
+  const numBooks = e.num_books ? `${e.num_books} books` : '';
+
+  // What price to pay
+  const no_ask = e.no_ask || (100 - e.kalshi_price);
+  const betPrice = e.best_side === 'YES' ? e.kalshi_price : no_ask;
+
+  const reasoning = e.reasoning || `Est. true prob: ${truePct}% | Kalshi: ${e.kalshi_price}¢ | Gap: ${gapPp}pp`;
+
+  return `<div class="edge-card ${conf.toLowerCase()}">
+    <div class="edge-top">
+      <span class="edge-conf ${conf}">${conf}</span>
+      <div class="edge-main">
+        <div class="edge-label">${e.label || '—'}</div>
+        <div class="edge-sub">${e.ticker || ''}</div>
+      </div>
+      <span class="edge-type ${type}">${type}</span>
+      ${gameDate ? `<span class="edge-date">${gameDate}</span>` : ''}
+      <div class="edge-stats">
+        <div class="edge-stat">
+          <div class="edge-stat-label">Kalshi</div>
+          <div class="edge-stat-val">${e.kalshi_price}¢</div>
+        </div>
+        ${sbPct !== null ? `<div class="edge-stat">
+          <div class="edge-stat-label">Books ${numBooks}</div>
+          <div class="edge-stat-val">${sbPct}%</div>
+        </div>` : `<div class="edge-stat">
+          <div class="edge-stat-label">Model</div>
+          <div class="edge-stat-val">${truePct}%</div>
+        </div>`}
+        <div class="edge-stat">
+          <div class="edge-stat-label">Gap</div>
+          <div class="edge-stat-val"><span class="gap-badge">${gapPp}pp</span></div>
+        </div>
+        <div class="edge-stat">
+          <div class="edge-stat-label">Side</div>
+          <div class="edge-stat-val ${sideClass}">${e.best_side} ${betPrice}¢</div>
+        </div>
+        <div class="edge-stat">
+          <div class="edge-stat-label">EV</div>
+          <div class="edge-stat-val"><span class="ev-pill ${evClass}">+${ev}%</span></div>
+        </div>
+        <div class="edge-stat">
+          <div class="edge-stat-label">Kelly</div>
+          <div class="edge-stat-val">${betSize}</div>
+        </div>
+      </div>
+    </div>
+    <div class="edge-reasoning">
+      <strong>Why:</strong> ${reasoning}
+    </div>
+  </div>`;
+}
+
+function renderParlays(containerId, parlays) {
+  const wrap = document.getElementById(containerId);
+  if (!parlays || !parlays.length) {
+    wrap.innerHTML = `<div class="no-edges-msg">
+      <h3>No parlay combos available</h3>
+      <p style="margin-top:8px">Parlays are built from 2+ HIGH confidence actionable edges in different games.<br>
+      Run a scan when more sportsbook-anchored edges are available.</p>
+    </div>`;
+    return;
+  }
+
+  const cards = parlays.map(p => {
+    const evPct = (p.parlay_ev * 100).toFixed(1);
+    const truePct = (p.combined_true_prob * 100).toFixed(1);
+    const kalshiPct = (p.combined_kalshi_price * 100).toFixed(1);
+    const evClass = p.parlay_ev >= 0.04 ? 'ev-high' : p.parlay_ev >= 0.02 ? 'ev-mid' : 'ev-low';
+    const legs = (p.recommended_bets || []).map(b => `<li style="margin:3px 0">${b}</li>`).join('');
+    return `<div class="edge-card high" style="margin-bottom:8px">
+      <div class="edge-top">
+        <span class="edge-conf HIGH">${p.type.toUpperCase()}</span>
+        <div class="edge-main">
+          <div class="edge-label">${p.type}</div>
+          <div class="edge-sub">All legs are sportsbook-confirmed, uncorrelated</div>
+        </div>
+        <div class="edge-stats">
+          <div class="edge-stat">
+            <div class="edge-stat-label">True Prob</div>
+            <div class="edge-stat-val">${truePct}%</div>
+          </div>
+          <div class="edge-stat">
+            <div class="edge-stat-label">Kalshi Cost</div>
+            <div class="edge-stat-val">${kalshiPct}%</div>
+          </div>
+          <div class="edge-stat">
+            <div class="edge-stat-label">Parlay EV</div>
+            <div class="edge-stat-val"><span class="ev-pill ${evClass}">+${evPct}%</span></div>
+          </div>
+          <div class="edge-stat">
+            <div class="edge-stat-label">Total Kelly</div>
+            <div class="edge-stat-val">$${(p.total_kelly_exposure || 0).toFixed(0)}</div>
+          </div>
+        </div>
+      </div>
+      <div class="edge-reasoning">
+        <strong>Legs:</strong>
+        <ul style="margin:6px 0 4px 16px;color:var(--text)">${legs}</ul>
+        <div style="margin-top:6px;color:var(--muted)"><strong>Recommendation:</strong> ${p.recommendation}</div>
+      </div>
+    </div>`;
+  });
+
+  wrap.innerHTML = `<div style="padding:4px 0">${cards.join('')}</div>
+    <div style="padding:12px;font-size:12px;color:var(--muted);border-top:1px solid var(--border);margin-top:8px">
+      <strong style="color:var(--text)">How these work:</strong> Kalshi doesn't offer native parlays.
+      These are independent bets placed simultaneously — each uses fractional Kelly sizing.
+      Since the legs are in different games, they're uncorrelated.
+      Your total exposure = sum of individual Kelly bets shown.
+    </div>`;
+}
+
+async function loadHistory() {
+  try {
+    const r = await fetch('/api/history');
+    const data = await r.json();
+    const list = document.getElementById('history-list');
+    document.getElementById('history-count').textContent = data.length + ' scans';
+    if (!data.length) {
+      list.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>No history yet</div>';
+      return;
+    }
+    list.innerHTML = data.map(s => {
+      const dt = fmtDate(s.scanned_at);
+      const sum = s.summary || {};
+      return `<div class="history-row">
+        <span class="history-date">${dt}</span>
+        <span style="color:var(--green);font-weight:600">${sum.actionable ?? 0} HIGH</span>
+        <span style="color:var(--muted)">${sum.game_edges ?? 0} game · ${sum.prop_edges ?? 0} prop</span>
+        <span style="color:var(--muted);margin-left:auto">${s.total_markets ?? 0} markets</span>
+      </div>`;
+    }).join('');
+  } catch(e) {}
+}
+
+async function loadPerf() {
+  try {
+    const r = await fetch('/api/performance');
+    const data = await r.json();
+    const el = document.getElementById('perf-content');
+    if (!data.resolved) {
+      el.innerHTML = '<div class="empty"><div class="empty-icon">📊</div>No resolved trades yet</div>';
+      return;
+    }
+    const buckets = data.ev_buckets || {};
+    el.innerHTML = `
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-label">Resolved</div><div class="stat-value">${data.resolved}</div></div>
+        <div class="stat-card"><div class="stat-label">Win Rate</div><div class="stat-value ${data.win_rate > 0.55 ? 'green' : 'yellow'}">${(data.win_rate * 100).toFixed(1)}%</div></div>
+        <div class="stat-card"><div class="stat-label">Total P&L</div><div class="stat-value ${data.total_pnl >= 0 ? 'green' : ''}" style="${data.total_pnl < 0 ? 'color:var(--red)' : ''}">$${data.total_pnl}</div></div>
+      </div>`;
+  } catch(e) {}
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    const names = ['bets', 'parlays', 'watchlist', 'history', 'perf'];
+    t.classList.toggle('active', names[i] === name);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    p.classList.toggle('active', p.id === 'tab-' + name);
+  });
+  if (name === 'history') loadHistory();
+  if (name === 'perf') loadPerf();
+}
+
+setInterval(loadLatest, 5 * 60 * 1000);
+loadLatest();
+loadStatus();
+</script>
+</body>
+</html>

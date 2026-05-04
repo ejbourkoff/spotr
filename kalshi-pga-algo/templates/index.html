@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kalshi PGA Edge Scanner</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2128;
+    --border: #30363d;
+    --green: #00e639;
+    --green-dim: #0a3a1a;
+    --yellow: #f0b429;
+    --yellow-dim: #3a2f00;
+    --red: #f85149;
+    --blue: #58a6ff;
+    --blue-dim: #0d2149;
+    --purple: #d2a8ff;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --radius: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; }
+
+  header { border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: var(--bg); z-index: 10; }
+  .logo { font-size: 18px; font-weight: 700; color: var(--green); letter-spacing: -0.5px; }
+  .logo span { color: var(--text); }
+  .header-meta { display: flex; gap: 12px; align-items: center; }
+  .badge { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; font-size: 12px; color: var(--muted); }
+  .badge.live { border-color: var(--green); color: var(--green); }
+  .scan-btn { background: var(--green); color: #000; border: none; border-radius: var(--radius); padding: 8px 18px; font-weight: 700; cursor: pointer; font-size: 13px; }
+  .scan-btn:hover { opacity: 0.85; }
+  .scan-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  main { max-width: 1300px; margin: 0 auto; padding: 20px 24px; }
+
+  .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 20px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+  .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px; }
+  .stat-value { font-size: 24px; font-weight: 700; }
+  .stat-value.green { color: var(--green); }
+  .stat-value.yellow { color: var(--yellow); }
+  .stat-value.blue { color: var(--blue); }
+  .stat-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .scan-status { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+  .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; flex-shrink: 0; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .pulse.idle { background: var(--muted); animation: none; }
+
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+  .tab { padding: 8px 16px; cursor: pointer; border-bottom: 2px solid transparent; color: var(--muted); font-size: 13px; font-weight: 500; transition: color 0.15s; }
+  .tab.active { border-bottom-color: var(--green); color: var(--text); }
+  .tab:hover { color: var(--text); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .section-title { font-size: 15px; font-weight: 600; }
+  .count-badge { background: var(--green-dim); color: var(--green); border-radius: 12px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
+  .count-badge.yellow { background: var(--yellow-dim); color: var(--yellow); }
+  .count-badge.muted { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+
+  /* Edge cards */
+  .edge-list { display: flex; flex-direction: column; gap: 8px; }
+  .edge-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .edge-card.high   { border-left: 3px solid var(--green); }
+  .edge-card.medium { border-left: 3px solid var(--yellow); }
+  .edge-card.low    { border-left: 3px solid var(--muted); }
+
+  .edge-top { display: flex; align-items: center; gap: 12px; padding: 12px 14px; flex-wrap: wrap; }
+  .edge-conf { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; border-radius: 4px; padding: 3px 7px; white-space: nowrap; }
+  .edge-conf.HIGH   { background: var(--green-dim); color: var(--green); }
+  .edge-conf.MEDIUM { background: var(--yellow-dim); color: var(--yellow); }
+  .edge-conf.LOW    { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+
+  .edge-main { flex: 1; min-width: 200px; }
+  .edge-player { font-weight: 700; font-size: 15px; }
+  .edge-tournament { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .edge-stats { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .edge-stat { text-align: center; }
+  .edge-stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  .edge-stat-val { font-size: 15px; font-weight: 700; margin-top: 1px; }
+
+  .ev-pill { border-radius: 20px; padding: 4px 10px; font-size: 12px; font-weight: 700; }
+  .ev-high { background: var(--green-dim); color: var(--green); }
+  .ev-mid  { background: var(--yellow-dim); color: var(--yellow); }
+  .ev-low  { background: #1a1a2e; color: #8b8fff; }
+
+  .side-yes { color: var(--green); font-weight: 700; }
+  .side-no  { color: #ff7b72; font-weight: 700; }
+
+  .gap-badge { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 2px 7px; font-size: 11px; font-weight: 600; }
+
+  .edge-reasoning { padding: 8px 14px 10px; border-top: 1px solid var(--border); background: var(--surface2); font-size: 12px; color: var(--muted); }
+  .edge-reasoning strong { color: var(--text); }
+
+  /* Leaderboard table (full field view) */
+  table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  thead th { background: #1c2128; color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #1c2128; }
+  td { padding: 9px 12px; vertical-align: middle; font-size: 13px; }
+  .text-green { color: var(--green); }
+  .text-red   { color: var(--red); }
+  .text-muted { color: var(--muted); }
+
+  .empty { text-align: center; padding: 48px; color: var(--muted); }
+  .empty-icon { font-size: 32px; margin-bottom: 8px; }
+
+  .history-grid { display: flex; flex-direction: column; gap: 8px; }
+  .history-row { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; display: flex; align-items: center; gap: 16px; font-size: 13px; }
+
+  .footer { text-align: center; padding: 20px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--border); margin-top: 28px; }
+
+  #loading-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 100; align-items: center; justify-content: center; flex-direction: column; gap: 12px; }
+  #loading-overlay.show { display: flex; }
+  .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--green); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { color: var(--text); font-size: 14px; }
+
+  .no-edges-msg { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 32px; text-align: center; color: var(--muted); }
+  .no-edges-msg h3 { color: var(--text); margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-text">Scanning Kalshi + sportsbooks for PGA edges...</div>
+</div>
+
+<header>
+  <div class="logo">Kalshi<span>PGA</span></div>
+  <div class="header-meta">
+    <div class="badge" id="scan-time">Last scan: —</div>
+    <div class="badge live" id="market-count">— markets</div>
+    <button class="scan-btn" id="scan-btn" onclick="triggerScan()">⟳ Scan Now</button>
+  </div>
+</header>
+
+<main>
+  <div class="scan-status" id="scan-status">
+    <div class="pulse idle" id="pulse-dot"></div>
+    <span id="status-text">Loading latest scan...</span>
+  </div>
+
+  <!-- Live tournament banner (shows when a round is in progress or suspended) -->
+  <div id="live-banner" style="display:none;background:var(--green-dim);border:1px solid var(--green);border-radius:var(--radius);padding:10px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px;font-size:13px;">
+    <div style="width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 1.5s infinite;flex-shrink:0"></div>
+    <span id="live-banner-text">Loading live tournament...</span>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">HIGH Conf Bets</div>
+      <div class="stat-value green" id="s-actionable">—</div>
+      <div class="stat-sub">actionable edges</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Best EV</div>
+      <div class="stat-value yellow" id="s-best-ev">—</div>
+      <div class="stat-sub">top edge found</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">YES Bets</div>
+      <div class="stat-value green" id="s-yes">—</div>
+      <div class="stat-sub">underpriced</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">NO Bets</div>
+      <div class="stat-value" id="s-no" style="color:var(--red)">—</div>
+      <div class="stat-sub">overpriced</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Days to PGA</div>
+      <div class="stat-value blue" id="s-days-pga">—</div>
+      <div class="stat-sub">May 14, 2026</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Bankroll</div>
+      <div class="stat-value blue">$<span id="s-bankroll">—</span></div>
+      <div class="stat-sub">Kelly basis</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('bets')">Today's Bets</div>
+    <div class="tab" onclick="switchTab('live')">Live Leaderboard</div>
+    <div class="tab" onclick="switchTab('parlays')">Parlays / Portfolio</div>
+    <div class="tab" onclick="switchTab('field')">Full Field</div>
+    <div class="tab" onclick="switchTab('watchlist')">Watchlist</div>
+    <div class="tab" onclick="switchTab('history')">History</div>
+  </div>
+
+  <div class="tab-panel active" id="tab-bets">
+    <div class="section-header">
+      <div class="section-title">HIGH Confidence Edges</div>
+      <div class="count-badge" id="action-count">0</div>
+      <div style="margin-left:auto;font-size:12px;color:var(--muted)">Sportsbook-confirmed · 2+ books · gap ≥ 2pp</div>
+    </div>
+    <div id="bets-list">
+      <div class="empty"><div class="empty-icon">⛳</div>Run a scan to see today's PGA edges</div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-parlays">
+    <div class="section-header">
+      <div class="section-title">Parlays & Portfolio Combos</div>
+      <div class="count-badge" id="parlay-count">0</div>
+    </div>
+    <div id="parlay-list">
+      <div class="empty"><div class="empty-icon">🎲</div>Run a scan to see parlay recommendations</div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-live">
+    <div class="section-header">
+      <div class="section-title">Live Leaderboard</div>
+      <div class="count-badge" id="live-player-count">0 players</div>
+      <div style="margin-left:auto;font-size:12px;color:var(--muted)" id="live-round-info">—</div>
+    </div>
+    <div id="live-leaderboard-content">
+      <div class="empty"><div class="empty-icon">⛳</div>Click "Live Leaderboard" tab to load current standings</div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-field">
+    <div class="section-header">
+      <div class="section-title">Full Field — All Players</div>
+      <div class="count-badge muted" id="field-count">0 players</div>
+      <div style="margin-left:auto;font-size:12px;color:var(--muted)">Kalshi vs books for every matched player</div>
+    </div>
+    <div id="field-table">
+      <div class="empty"><div class="empty-icon">📋</div>Run a scan to see the full field</div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-watchlist">
+    <div class="section-header">
+      <div class="section-title">Watchlist — MEDIUM confidence</div>
+      <div class="count-badge yellow" id="watch-count">0</div>
+      <div style="margin-left:auto;font-size:12px;color:var(--yellow)">Gap exists but smaller — monitor, don't bet yet</div>
+    </div>
+    <div id="watchlist-list">
+      <div class="empty"><div class="empty-icon">👀</div>No watchlist items</div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-history">
+    <div class="section-header">
+      <div class="section-title">Scan History</div>
+      <div class="count-badge muted" id="history-count">0 scans</div>
+    </div>
+    <div class="history-grid" id="history-list">
+      <div class="empty"><div class="empty-icon">📋</div>No history yet</div>
+    </div>
+  </div>
+</main>
+
+<div class="footer">Kalshi PGA Edge Scanner · Outright winner: sportsbook-anchored (HIGH = 3+ books) · Top 5/10/20: Monte Carlo simulation (LIVE MODEL) · Scans at 7 AM and 5 PM ET</div>
+
+<script>
+let allEdges = [];
+
+async function loadLatest() {
+  try {
+    const r = await fetch('/api/latest');
+    if (r.status === 404) { document.getElementById('status-text').textContent = 'No scan yet — click Scan Now'; return; }
+    if (!r.ok) return;
+    const data = await r.json();
+    if (data.error) return;
+    renderScan(data);
+    const hi = (data.edges || []).filter(e => e.actionable).length;
+    document.getElementById('status-text').textContent = `Scan loaded · ${hi} actionable edges · scans at 7 AM and 5 PM ET`;
+  } catch(e) {
+    document.getElementById('status-text').textContent = 'Click Scan Now to begin';
+  }
+}
+
+async function loadStatus() {
+  try {
+    const s = await fetch('/api/status').then(r => r.json());
+    if (s.bankroll) document.getElementById('s-bankroll').textContent = s.bankroll.toLocaleString();
+    if (s.days_to_pga !== undefined) document.getElementById('s-days-pga').textContent = s.days_to_pga;
+  } catch(e) {}
+}
+
+async function loadLiveLeaderboard() {
+  const wrap = document.getElementById('live-leaderboard-content');
+  wrap.innerHTML = '<div class="empty"><div class="spinner" style="margin:0 auto"></div></div>';
+  try {
+    const r = await fetch('/api/leaderboard');
+    if (r.status === 404) {
+      wrap.innerHTML = '<div class="no-edges-msg"><h3>No live event</h3><p style="margin-top:8px">Kalshi finishing-position markets activate when a PGA Tour event is in-round or suspended. The PGA Championship starts May 14.</p></div>';
+      return;
+    }
+    const data = await r.json();
+    renderLeaderboard(data);
+  } catch(e) {
+    wrap.innerHTML = '<div class="empty">Failed to load leaderboard</div>';
+  }
+}
+
+function renderLeaderboard(data) {
+  const players = data.players || [];
+  const status = data.status || '';
+  const round = data.round || '?';
+  const holes = data.holes_remaining || 0;
+  const event = data.event_name || 'PGA Event';
+
+  document.getElementById('live-player-count').textContent = players.length + ' players';
+  const statusLabel = status === 'suspended' ? '⏸ SUSPENDED' : status === 'in' ? '🔴 LIVE' : status === 'post' ? '✓ FINAL' : '—';
+  document.getElementById('live-round-info').textContent = `R${round} · ${statusLabel} · ${holes} holes remaining`;
+
+  // Update banner
+  const banner = document.getElementById('live-banner');
+  if (status === 'in' || status === 'suspended') {
+    banner.style.display = 'flex';
+    document.getElementById('live-banner-text').textContent =
+      `${event} — Round ${round} ${status === 'suspended' ? 'SUSPENDED' : 'IN PROGRESS'} · ${holes} holes remaining · top 5/10/20 markets are live`;
+  }
+
+  if (!players.length) {
+    document.getElementById('live-leaderboard-content').innerHTML = '<div class="empty">No player data</div>';
+    return;
+  }
+
+  const rows = players.map(p => {
+    const score = p.score_int;
+    const scoreStr = score > 0 ? `+${score}` : score === 0 ? 'E' : score;
+    const scoreColor = score < 0 ? 'style="color:var(--green)"' : score > 0 ? 'style="color:var(--red)"' : '';
+    return `<tr>
+      <td style="color:var(--muted)">#${p.position}</td>
+      <td><strong>${p.name}</strong></td>
+      <td ${scoreColor}>${scoreStr}</td>
+      <td style="color:var(--muted)">${p.holes_done_today > 0 ? 'Thru ' + p.holes_done_today : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('live-leaderboard-content').innerHTML = `
+    <div style="margin-bottom:10px;font-size:12px;color:var(--muted)">
+      Scores are cumulative (all rounds). Source: ESPN live data.
+      <strong style="color:var(--yellow)"> Top 5/10/20 finishing markets are live on Kalshi — scan to find edges.</strong>
+    </div>
+    <table>
+      <thead><tr><th>Pos</th><th>Player</th><th>Score</th><th>Today</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+async function triggerScan() {
+  const btn = document.getElementById('scan-btn');
+  btn.disabled = true; btn.textContent = 'Scanning...';
+  document.getElementById('loading-overlay').classList.add('show');
+  document.getElementById('pulse-dot').classList.remove('idle');
+  document.getElementById('status-text').textContent = 'Scanning Kalshi PGA markets + sportsbooks...';
+  try {
+    const r = await fetch('/api/scan', { method: 'POST' });
+    const data = await r.json();
+    if (r.status === 202) { await pollForResult(); return; }
+    if (!r.ok || data.error) { document.getElementById('status-text').textContent = `Error: ${data.message || 'unknown'}`; return; }
+    renderScan(data);
+    const hi = (data.edges || []).filter(e => e.actionable).length;
+    document.getElementById('status-text').textContent = `Scan complete · ${hi} HIGH confidence edges`;
+    loadHistory();
+  } catch(e) {
+    document.getElementById('status-text').textContent = 'Network error';
+  } finally {
+    btn.disabled = false; btn.textContent = '⟳ Scan Now';
+    document.getElementById('loading-overlay').classList.remove('show');
+    document.getElementById('pulse-dot').classList.add('idle');
+  }
+}
+
+async function pollForResult(attempts=0) {
+  if (attempts > 40) return;
+  await sleep(3000);
+  const s = await fetch('/api/status').then(r => r.json()).catch(() => ({}));
+  if (s.scanning) return pollForResult(attempts + 1);
+  await loadLatest();
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const s = iso.includes('Z') || iso.includes('+') ? iso : iso + 'Z';
+  const d = new Date(s);
+  return isNaN(d) ? iso : d.toLocaleString();
+}
+
+function renderScan(data) {
+  if (!data || !data.edges || !data.summary) return;
+  const { edges, summary, parlays, scanned_at, total_markets } = data;
+  allEdges = edges;
+
+  document.getElementById('scan-time').textContent = 'Last scan: ' + fmtDate(scanned_at);
+  document.getElementById('market-count').textContent = (total_markets || edges.length) + ' markets';
+  document.getElementById('s-actionable').textContent = summary.actionable ?? 0;
+  document.getElementById('s-best-ev').textContent    = (summary.top_ev ?? 0) + '%';
+  document.getElementById('s-yes').textContent = summary.yes_edges ?? 0;
+  document.getElementById('s-no').textContent  = summary.no_edges ?? 0;
+
+  const actionable = edges.filter(e => e.actionable);
+  const watchlist  = edges.filter(e => !e.actionable && e.confidence === 'MEDIUM');
+
+  // Show live banner if any finishing edges
+  const finishing = edges.filter(e => e.market_type && e.market_type.startsWith('top'));
+  if (finishing.length > 0) {
+    const liveBanner = document.getElementById('live-banner');
+    liveBanner.style.display = 'flex';
+    const tournament = finishing[0].tournament || '';
+    document.getElementById('live-banner-text').textContent =
+      `${tournament} is LIVE — ${finishing.length} top-5/10/20 edges found · Check Live Leaderboard tab`;
+  }
+
+  document.getElementById('action-count').textContent = actionable.length;
+  document.getElementById('watch-count').textContent  = watchlist.length;
+  document.getElementById('field-count').textContent  = edges.filter(e => !e.market_type?.startsWith('top')).length + ' players';
+
+  renderEdgeList('bets-list', actionable, true);
+  renderEdgeList('watchlist-list', watchlist, false);
+  renderFieldTable('field-table', edges.filter(e => !e.market_type?.startsWith('top')));
+  renderParlays('parlay-list', parlays || []);
+  document.getElementById('parlay-count').textContent = (parlays || []).length;
+}
+
+function renderEdgeList(containerId, edges, isBets) {
+  const wrap = document.getElementById(containerId);
+  if (!edges.length) {
+    wrap.innerHTML = `<div class="no-edges-msg">
+      <h3>${isBets ? 'No HIGH confidence edges' : 'No watchlist items'}</h3>
+      <p style="margin-top:8px">${isBets ? 'HIGH confidence requires 2+ books confirming a 2pp+ gap vs Kalshi. Run a fresh scan when a major is in play.' : 'No MEDIUM confidence edges right now.'}</p>
+    </div>`;
+    return;
+  }
+  wrap.innerHTML = `<div class="edge-list">${edges.map(e => renderEdgeCard(e)).join('')}</div>`;
+}
+
+function renderEdgeCard(e) {
+  const ev = (e.best_ev * 100).toFixed(2);
+  const evClass = e.best_ev >= 0.06 ? 'ev-high' : e.best_ev >= 0.03 ? 'ev-mid' : 'ev-low';
+  const sideClass = e.best_side === 'YES' ? 'side-yes' : 'side-no';
+  const conf = e.confidence || 'LOW';
+  const noAsk = e.no_ask || (100 - e.yes_ask);
+  const betPrice = e.best_side === 'YES' ? e.yes_ask : noAsk;
+  const gap = e.gap_pp ? e.gap_pp.toFixed(1) : '—';
+  const isFinishing = e.market_type && e.market_type.startsWith('top');
+  const marketLabel = isFinishing ? `TOP ${e.threshold}` : 'OUTRIGHT';
+  const sourceBadge = isFinishing
+    ? `<span style="background:#0d2149;color:var(--blue);border-radius:4px;padding:3px 7px;font-size:10px;font-weight:700;margin-left:6px">LIVE MODEL</span>`
+    : `<span style="background:#0a1a2e;color:#58a6ff;border-radius:4px;padding:3px 7px;font-size:10px;font-weight:700;margin-left:6px">BOOKS</span>`;
+  const probLabel = isFinishing ? 'Model %' : `${e.num_books || 0} books`;
+  const modelPct = e.true_prob ? (e.true_prob * 100).toFixed(1) : (e.sb_prob ? (e.sb_prob * 100).toFixed(1) : '—');
+  const posInfo = e.position ? `<div style="font-size:11px;color:var(--blue);margin-top:2px">#${e.position} pos · ${e.score_str || ''}  (${e.holes_remaining || 0}h left)</div>` : '';
+
+  return `<div class="edge-card ${conf.toLowerCase()}">
+    <div class="edge-top">
+      <span class="edge-conf ${conf}">${conf}</span>${sourceBadge}
+      <div class="edge-main">
+        <div class="edge-player">${e.player || '—'}</div>
+        <div class="edge-tournament">${e.tournament || ''} · ${marketLabel}</div>
+        ${posInfo}
+      </div>
+      <div class="edge-stats">
+        <div class="edge-stat">
+          <div class="edge-stat-label">Kalshi YES</div>
+          <div class="edge-stat-val">${e.yes_ask}¢</div>
+        </div>
+        <div class="edge-stat">
+          <div class="edge-stat-label">${probLabel}</div>
+          <div class="edge-stat-val">${modelPct}%</div>
+        </div>
+        <div class="edge-stat">
+          <div class="edge-stat-label">Gap</div>
+          <div class="edge-stat-val"><span class="gap-badge">${gap}pp</span></div>
+        </div>
+        <div class="edge-stat">
+          <div class="edge-stat-label">Side</div>
+          <div class="edge-stat-val ${sideClass}">${e.best_side} ${betPrice}¢</div>
+        </div>
+        <div class="edge-stat">
+          <div class="edge-stat-label">EV</div>
+          <div class="edge-stat-val"><span class="ev-pill ${evClass}">+${ev}%</span></div>
+        </div>
+        <div class="edge-stat">
+          <div class="edge-stat-label">Kelly</div>
+          <div class="edge-stat-val">$${(e['bet_size_$'] || 0).toFixed(0)}</div>
+        </div>
+      </div>
+    </div>
+    <div class="edge-reasoning">
+      <strong>Why:</strong> ${e.reasoning || '—'}
+    </div>
+  </div>`;
+}
+
+function renderFieldTable(containerId, edges) {
+  const wrap = document.getElementById(containerId);
+  if (!edges.length) { wrap.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>No data</div>'; return; }
+
+  // Group by tournament
+  const byT = {};
+  for (const e of edges) {
+    if (!byT[e.tournament]) byT[e.tournament] = [];
+    byT[e.tournament].push(e);
+  }
+
+  const sections = Object.entries(byT).map(([t, es]) => {
+    const rows = es.map(e => {
+      const noAsk = e.no_ask || (100 - e.yes_ask);
+      const sb = e.sb_prob ? (e.sb_prob * 100).toFixed(1) : '—';
+      const gap = e.gap_pp ? e.gap_pp.toFixed(1) : '—';
+      const sideClass = e.best_side === 'YES' ? 'text-green' : 'text-red';
+      const evClass = e.best_ev >= 0.05 ? 'text-green' : e.best_ev >= 0.02 ? '' : 'text-muted';
+      const confMark = e.confidence === 'HIGH' ? '🟢' : e.confidence === 'MEDIUM' ? '🟡' : '⚪';
+      return `<tr>
+        <td>${confMark} <strong>${e.player}</strong></td>
+        <td>${e.yes_ask}¢</td>
+        <td>${(e.kalshi_implied * 100).toFixed(1)}%</td>
+        <td>${sb}%</td>
+        <td><span class="gap-badge">${gap}pp</span></td>
+        <td class="${sideClass}">${e.best_side}</td>
+        <td class="${evClass}">${(e.best_ev * 100).toFixed(2)}%</td>
+        <td>$${(e['bet_size_$'] || 0).toFixed(0)}</td>
+        <td class="text-muted">${e.num_books || '—'}</td>
+      </tr>`;
+    }).join('');
+    return `<div style="margin-bottom:20px">
+      <div class="section-header"><div class="section-title">${t}</div></div>
+      <table>
+        <thead><tr>
+          <th>Player</th><th>Kalshi ¢</th><th>Kalshi %</th><th>Books %</th><th>Gap</th><th>Side</th><th>EV</th><th>Kelly</th><th>Books</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  });
+
+  wrap.innerHTML = sections.join('');
+}
+
+function renderParlays(containerId, parlays) {
+  const wrap = document.getElementById(containerId);
+  if (!parlays.length) {
+    wrap.innerHTML = `<div class="no-edges-msg">
+      <h3>No parlay combos yet</h3>
+      <p style="margin-top:8px">Parlays require 2+ actionable edges. Scan when majors are active.</p>
+    </div>`;
+    return;
+  }
+
+  const cards = parlays.map(p => {
+    const ev = (p.parlay_ev * 100).toFixed(2);
+    const evClass = p.parlay_ev >= 0.05 ? 'ev-high' : p.parlay_ev >= 0.02 ? 'ev-mid' : 'ev-low';
+    const truePct   = (p.combined_true_prob * 100).toFixed(2);
+    const kalshiPct = (p.combined_kalshi_price * 100).toFixed(2);
+    const legs = (p.recommended_bets || []).map(b => `<li style="margin:3px 0;color:var(--text)">${b}</li>`).join('');
+    return `<div class="edge-card high" style="margin-bottom:8px">
+      <div class="edge-top">
+        <span class="edge-conf HIGH">${p.type}</span>
+        <div class="edge-main">
+          <div class="edge-player">${p.legs}-leg combo</div>
+          <div class="edge-tournament">${p.type}</div>
+        </div>
+        <div class="edge-stats">
+          <div class="edge-stat"><div class="edge-stat-label">True Prob</div><div class="edge-stat-val">${truePct}%</div></div>
+          <div class="edge-stat"><div class="edge-stat-label">Kalshi Cost</div><div class="edge-stat-val">${kalshiPct}%</div></div>
+          <div class="edge-stat"><div class="edge-stat-label">Combo EV</div><div class="edge-stat-val"><span class="ev-pill ${evClass}">+${ev}%</span></div></div>
+          <div class="edge-stat"><div class="edge-stat-label">Total Kelly</div><div class="edge-stat-val">$${(p.total_kelly_exposure || 0).toFixed(0)}</div></div>
+        </div>
+      </div>
+      <div class="edge-reasoning">
+        <strong>Legs:</strong>
+        <ul style="margin:6px 0 4px 16px">${legs}</ul>
+        <div style="margin-top:6px;color:var(--muted)">${p.recommendation}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  wrap.innerHTML = cards + `<div style="padding:12px;font-size:12px;color:var(--muted);border-top:1px solid var(--border);margin-top:8px">
+    <strong style="color:var(--text)">Note:</strong> Kalshi has no native parlay feature. These are independent bets placed separately.
+    Cross-tournament combos are truly independent. Same-tournament combos are mutually exclusive
+    (only one player can win) — they are independent BETS but not additive in probability.
+  </div>`;
+}
+
+async function loadHistory() {
+  try {
+    const data = await fetch('/api/history').then(r => r.json());
+    const list = document.getElementById('history-list');
+    document.getElementById('history-count').textContent = data.length + ' scans';
+    if (!data.length) { list.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>No history</div>'; return; }
+    list.innerHTML = data.map(s => {
+      const dt = fmtDate(s.scanned_at);
+      const sum = s.summary || {};
+      const tours = (sum.tournaments || []).join(', ') || '—';
+      return `<div class="history-row">
+        <span style="color:var(--muted);min-width:180px">${dt}</span>
+        <span style="color:var(--green);font-weight:600">${sum.actionable ?? 0} HIGH</span>
+        <span style="color:var(--muted)">${sum.yes_edges ?? 0} YES · ${sum.no_edges ?? 0} NO</span>
+        <span style="color:var(--muted);margin-left:auto;font-size:12px">${tours}</span>
+      </div>`;
+    }).join('');
+  } catch(e) {}
+}
+
+function switchTab(name) {
+  const names = ['bets', 'live', 'parlays', 'field', 'watchlist', 'history'];
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', names[i] === name));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + name));
+  if (name === 'history') loadHistory();
+  if (name === 'live') loadLiveLeaderboard();
+}
+
+// Auto-refresh every 3 min during live events
+setInterval(loadLatest, 3 * 60 * 1000);
+loadLatest();
+loadStatus();
+
+// Check for live events and update banner
+(async () => {
+  try {
+    const r = await fetch('/api/leaderboard');
+    if (r.ok) {
+      const data = await r.json();
+      const status = data.status || '';
+      if (status === 'in' || status === 'suspended') {
+        const banner = document.getElementById('live-banner');
+        banner.style.display = 'flex';
+        document.getElementById('live-banner-text').textContent =
+          `${data.event_name} · R${data.round} ${status === 'suspended' ? 'SUSPENDED' : 'LIVE'} · ${data.holes_remaining}h remaining · Top 5/10/20 markets are live — Scan Now for edges`;
+      }
+    }
+  } catch(e) {}
+})();
+</script>
+</body>
+</html>

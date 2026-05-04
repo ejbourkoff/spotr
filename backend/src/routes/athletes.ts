@@ -57,70 +57,56 @@ router.get('/by-slug/:slug', async (req: AuthRequest, res: Response) => {
   }
 });
 
-// Search athletes with filters
+// List athletes — returns SearchUser format for iOS Discover
 router.get('/', async (req: AuthRequest, res: Response) => {
   try {
-    const {
-      sport,
-      position,
-      classYear,
-      level, // TODO: This would need to be added to the schema or derived from schoolTeam
-      location,
-      openToNIL,
-      openToSemiProPro,
-      statType,
-      statMinValue,
-      limit = '50',
-      offset = '0',
-    } = req.query;
+    const { sport, limit = '50', offset = '0' } = req.query;
 
-    const where: any = {};
+    const where: any = { athleteProfile: { isNot: null } };
+    if (sport) where.athleteProfile = { sport: sport as string };
 
-    if (sport) where.sport = sport as string;
-    if (position) where.position = { contains: position as string, mode: 'insensitive' };
-    if (classYear) where.classYear = classYear as string;
-    if (location) where.location = { contains: location as string, mode: 'insensitive' };
-    if (openToNIL === 'true') where.openToNIL = true;
-    if (openToSemiProPro === 'true') where.openToSemiProPro = true;
-
-    // TODO: Filter by stat thresholds - this would require a join/subquery
-    // For now, we'll fetch all and filter in memory (not efficient for large datasets)
-
-    const profiles = await prisma.athleteProfile.findMany({
+    const users = await prisma.user.findMany({
       where,
-      include: {
-        stats: true,
-        user: {
-          select: {
-            id: true,
-          },
-        },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        avatarUrl: true,
+        athleteProfile: { select: { id: true, name: true, sport: true } },
+        coachProfile:   { select: { id: true, name: true, organization: true } },
+        brandProfile:   { select: { id: true, name: true, organizationType: true } },
       },
       take: parseInt(limit as string),
       skip: parseInt(offset as string),
       orderBy: { createdAt: 'desc' },
     });
 
-    // TODO: Apply stat filtering in memory for now
-    let filteredProfiles = profiles;
-    if (statType && statMinValue) {
-      filteredProfiles = profiles.filter((profile) => {
-        const relevantStat = profile.stats.find(
-          (s) => s.statType === statType && s.value >= parseFloat(statMinValue as string)
-        );
-        return !!relevantStat;
-      });
-    }
-
-    res.json({
-      profiles: filteredProfiles.map((p) => ({
-        ...p,
-        stats: undefined, // Exclude full stats from list view for performance
-      })),
-      total: filteredProfiles.length,
-    });
+    res.json({ athletes: users });
   } catch (error) {
-    console.error('Search athletes error:', error);
+    console.error('List athletes error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get user with full profile by userId (used by iOS ProfileView)
+router.get('/user/:userId', async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.userId },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        avatarUrl: true,
+        athleteProfile: { select: { id: true, name: true, sport: true, bio: true, position: true, schoolTeam: true, classYear: true, location: true, openToNIL: true, slug: true } },
+        coachProfile:   { select: { id: true, name: true, organization: true, title: true, school: true } },
+        brandProfile:   { select: { id: true, name: true, organizationType: true } },
+      },
+    });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json({ user });
+  } catch (error) {
+    console.error('Get user profile error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

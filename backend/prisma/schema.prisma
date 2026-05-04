@@ -193,6 +193,8 @@ model Post {
   comments      Comment[]
   saves         Save[]
 
+  @@index([authorId])
+  @@index([isStory, isReel, createdAt])
   @@map("posts")
 }
 

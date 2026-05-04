@@ -15,10 +15,10 @@ cloudinary.config({
 const storage = multer.memoryStorage()
 const upload = multer({
   storage,
-  limits: { fileSize: 30 * 1024 * 1024 }, // 30MB to handle HEIC
+  limits: { fileSize: 200 * 1024 * 1024 }, // 200MB for video
   fileFilter: (_req, file, cb) => {
-    // Accept any image MIME type — covers HEIC/HEIF from iOS camera roll
-    cb(null, file.mimetype.startsWith('image/'))
+    const ok = file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')
+    cb(null, ok)
   },
 })
 
@@ -37,14 +37,19 @@ router.post('/', authenticate, upload.single('file'), async (req: AuthRequest, r
   }
 
   try {
+    const isVideo = req.file!.mimetype.startsWith('video/')
     const result = await new Promise<any>((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
-        { folder: 'spotr', resource_type: 'image', quality: 'auto', fetch_format: 'auto' },
+        {
+          folder: 'spotr',
+          resource_type: isVideo ? 'video' : 'image',
+          ...(isVideo ? {} : { quality: 'auto', fetch_format: 'auto' }),
+        },
         (err, result) => (err ? reject(err) : resolve(result))
       )
       stream.end(req.file!.buffer)
     })
-    res.json({ url: result.secure_url, mediaType: 'photo' })
+    res.json({ url: result.secure_url, mediaType: isVideo ? 'video' : 'photo' })
   } catch (err: any) {
     console.error('Cloudinary upload error:', err?.message || err)
     res.status(500).json({ error: `Upload failed: ${err?.message || 'unknown error'}` })

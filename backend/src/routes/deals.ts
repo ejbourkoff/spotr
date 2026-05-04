@@ -97,21 +97,34 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   }
 });
 
-// Update deal status (mark as completed)
-// TODO: Add proper authorization checks (both parties should be able to mark as completed)
+// Update deal status (mark as completed) — callable by either the athlete or brand on the deal
 router.put('/:id/complete', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
+    const userId = req.userId!;
 
     const deal = await prisma.deal.findUnique({
       where: { id },
       include: {
-        offer: true,
+        offer: {
+          include: {
+            brand: { select: { userId: true } },
+            athlete: { select: { userId: true } },
+          },
+        },
       },
     });
 
     if (!deal) {
       return res.status(404).json({ error: 'Deal not found' });
+    }
+
+    const isParty =
+      deal.offer.athlete.userId === userId ||
+      deal.offer.brand.userId === userId;
+
+    if (!isParty) {
+      return res.status(403).json({ error: 'Only the athlete or brand on this deal can mark it complete' });
     }
 
     if (deal.status === 'COMPLETED') {

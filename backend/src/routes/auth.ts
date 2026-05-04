@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import prisma from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { loginLimiter } from '../middleware/rateLimiters';
 
 const router = express.Router();
 
@@ -78,10 +79,8 @@ router.post('/signup', async (req: Request, res: Response) => {
       { expiresIn: '7d' }
     );
 
-    res.status(201).json({
-      user,
-      token,
-    });
+    const fullUser = await prisma.user.findUnique({ where: { id: user.id }, select: profileSelect });
+    res.status(201).json({ user: fullUser, token });
   } catch (error: any) {
     console.error('Signup error:', error);
     res.status(500).json({ error: 'Internal server error', detail: error?.message });
@@ -89,7 +88,7 @@ router.post('/signup', async (req: Request, res: Response) => {
 });
 
 // Login
-router.post('/login', async (req: Request, res: Response) => {
+router.post('/login', loginLimiter, async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
@@ -120,38 +119,35 @@ router.post('/login', async (req: Request, res: Response) => {
       { expiresIn: '7d' }
     );
 
-    res.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-      },
-      token,
-    });
+    const fullUser = await prisma.user.findUnique({ where: { id: user.id }, select: profileSelect });
+    res.json({ user: fullUser, token });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
+const profileSelect = {
+  id: true,
+  email: true,
+  role: true,
+  avatarUrl: true,
+  athleteProfile: {
+    select: { id: true, name: true, sport: true, bio: true, position: true, schoolTeam: true, classYear: true, location: true, openToNIL: true, slug: true },
+  },
+  coachProfile: {
+    select: { id: true, name: true, organization: true, title: true, school: true },
+  },
+  brandProfile: {
+    select: { id: true, name: true, organizationType: true },
+  },
+};
+
 // Get current user
 router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.userId! },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        avatarUrl: true,
-        createdAt: true,
-      },
-    });
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
+    const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: profileSelect });
+    if (!user) return res.status(404).json({ error: 'User not found' });
     res.json({ user });
   } catch (error) {
     console.error('Get me error:', error);
@@ -159,15 +155,31 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
   }
 });
 
-// Update current user (avatar, etc.)
+// Update current user profile (name, bio, sport, avatarUrl)
 router.patch('/me', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { avatarUrl } = req.body;
-    const user = await prisma.user.update({
-      where: { id: req.userId! },
-      data: { avatarUrl },
-      select: { id: true, email: true, role: true, avatarUrl: true, createdAt: true },
-    });
+    const userId = req.userId!;
+    const { avatarUrl, name, bio, sport } = req.body;
+
+    if (avatarUrl !== undefined) {
+      await prisma.user.update({ where: { id: userId }, data: { avatarUrl } });
+    }
+
+    if (name !== undefined) {
+      const userRole = (await prisma.user.findUnique({ where: { id: userId }, select: { role: true } }))?.role;
+      if (userRole === 'ATHLETE') {
+        await prisma.athleteProfile.update({
+          where: { userId },
+          data: { name, ...(bio !== undefined && { bio }), ...(sport !== undefined && { sport }) },
+        });
+      } else if (userRole === 'COACH') {
+        await prisma.coachProfile.update({ where: { userId }, data: { name } });
+      } else if (userRole === 'BRAND') {
+        await prisma.brandProfile.update({ where: { userId }, data: { name } });
+      }
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: profileSelect });
     res.json({ user });
   } catch (error) {
     console.error('Update me error:', error);

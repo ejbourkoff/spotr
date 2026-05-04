@@ -130,6 +130,9 @@ router.get('/reels', authenticate, async (req: AuthRequest, res: Response) => {
 router.get('/feed', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
+    const { limit = '20', offset = '0' } = req.query;
+    const take = parseInt(limit as string) || 20;
+    const skip = parseInt(offset as string) || 0;
 
     // Get users that the current user follows
     const follows = await prisma.follow.findMany({
@@ -209,7 +212,8 @@ router.get('/feed', authenticate, async (req: AuthRequest, res: Response) => {
         },
       },
       orderBy: { createdAt: 'desc' },
-      take: 50, // TODO: Add pagination
+      take,
+      skip,
     });
 
     // Check which posts the current user has liked and saved
@@ -357,6 +361,43 @@ router.get('/user/:userId', async (req: AuthRequest, res: Response) => {
     res.json({ posts: postsWithStatus });
   } catch (error) {
     console.error('Get user posts error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get current user's own posts — MUST be before /:id
+router.get('/my', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const posts = await prisma.post.findMany({
+      where: { authorId: userId },
+      include: {
+        author: {
+          include: {
+            athleteProfile: { select: { id: true, name: true, sport: true } },
+            coachProfile:   { select: { id: true, name: true, organization: true } },
+            brandProfile:   { select: { id: true, name: true, organizationType: true } },
+          },
+        },
+        _count: { select: { likes: true, comments: true, saves: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const likedPostIds = new Set(
+      (await prisma.like.findMany({ where: { userId, postId: { in: posts.map(p => p.id) } }, select: { postId: true } }))
+        .map(l => l.postId)
+    );
+    const savedPostIds = new Set(
+      (await prisma.save.findMany({ where: { userId, postId: { in: posts.map(p => p.id) } }, select: { postId: true } }))
+        .map(s => s.postId)
+    );
+
+    res.json({
+      posts: posts.map(p => ({ ...p, isLiked: likedPostIds.has(p.id), isSaved: savedPostIds.has(p.id) })),
+    });
+  } catch (error) {
+    console.error('Get my posts error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

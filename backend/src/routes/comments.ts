@@ -1,11 +1,12 @@
 import express, { Response } from 'express';
 import prisma from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { commentLimiter } from '../middleware/rateLimiters';
 
 const router = express.Router();
 
 // Add comment to a post
-router.post('/:postId/comments', authenticate, async (req: AuthRequest, res: Response) => {
+router.post('/:postId/comments', authenticate, commentLimiter, async (req: AuthRequest, res: Response) => {
   try {
     const { postId } = req.params;
     const userId = req.userId!;

@@ -24,9 +24,11 @@ router.get('/search', authenticate, async (req: AuthRequest, res: Response) => {
       select: {
         id: true,
         email: true,
-        athleteProfile: { select: { name: true, sport: true, position: true } },
-        coachProfile:   { select: { name: true, organization: true } },
-        brandProfile:   { select: { name: true, organizationType: true } },
+        role: true,
+        avatarUrl: true,
+        athleteProfile: { select: { id: true, name: true, sport: true } },
+        coachProfile:   { select: { id: true, name: true, organization: true } },
+        brandProfile:   { select: { id: true, name: true, organizationType: true } },
       },
       take: 20,
     });
