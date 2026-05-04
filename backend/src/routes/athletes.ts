@@ -64,22 +64,31 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
 });
 
 // Get user with full profile by userId (used by iOS ProfileView)
-router.get('/user/:userId', async (req: AuthRequest, res: Response) => {
+router.get('/user/:userId', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.params.userId },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        avatarUrl: true,
-        athleteProfile: { select: { id: true, name: true, sport: true, bio: true, position: true, schoolTeam: true, classYear: true, location: true, openToNIL: true, openToSemiProPro: true, slug: true } },
-        coachProfile:   { select: { id: true, name: true, organization: true, title: true, school: true } },
-        brandProfile:   { select: { id: true, name: true, organizationType: true } },
-      },
-    });
+    const currentUserId = req.userId!;
+    const targetUserId = req.params.userId;
+
+    const [user, followRecord] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: targetUserId },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          avatarUrl: true,
+          athleteProfile: { select: { id: true, name: true, sport: true, bio: true, position: true, schoolTeam: true, classYear: true, location: true, openToNIL: true, openToSemiProPro: true, slug: true } },
+          coachProfile:   { select: { id: true, name: true, organization: true, title: true, school: true } },
+          brandProfile:   { select: { id: true, name: true, organizationType: true } },
+        },
+      }),
+      prisma.follow.findUnique({
+        where: { followerId_followingId: { followerId: currentUserId, followingId: targetUserId } },
+      }),
+    ]);
+
     if (!user) return res.status(404).json({ error: 'User not found' });
-    res.json({ user });
+    res.json({ user: { ...user, iFollow: !!followRecord } });
   } catch (error) {
     console.error('Get user profile error:', error);
     res.status(500).json({ error: 'Internal server error' });

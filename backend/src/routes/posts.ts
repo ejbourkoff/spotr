@@ -405,9 +405,22 @@ router.get('/my', authenticate, async (req: AuthRequest, res: Response) => {
 // Get stories — MUST be before /:id or Express matches 'stories' as an id
 router.get('/stories', authenticate, async (req: AuthRequest, res: Response) => {
   try {
+    const userId = req.userId!;
     const now = new Date();
+
+    // Get IDs of people current user follows (+ self)
+    const follows = await prisma.follow.findMany({
+      where: { followerId: userId },
+      select: { followingId: true },
+    });
+    const feedUserIds = [...follows.map(f => f.followingId), userId];
+
     const stories = await prisma.post.findMany({
-      where: { isStory: true, storyExpiresAt: { gt: now } },
+      where: {
+        isStory: true,
+        storyExpiresAt: { gt: now },
+        authorId: { in: feedUserIds },
+      },
       include: {
         author: {
           include: {
@@ -419,9 +432,26 @@ router.get('/stories', authenticate, async (req: AuthRequest, res: Response) => 
         _count: { select: { likes: true, comments: true, saves: true } },
       },
       orderBy: { createdAt: 'desc' },
-      take: 30,
+      take: 50,
     });
-    res.json({ stories });
+
+    const likedIds = new Set(
+      (await prisma.like.findMany({
+        where: { userId, postId: { in: stories.map(s => s.id) } },
+        select: { postId: true },
+      })).map(l => l.postId)
+    );
+    const savedIds = new Set(
+      (await prisma.save.findMany({
+        where: { userId, postId: { in: stories.map(s => s.id) } },
+        select: { postId: true },
+      })).map(s => s.postId)
+    );
+
+    // iOS decodes PostsResponse { posts } — use "posts" key
+    res.json({
+      posts: stories.map(s => ({ ...s, isLiked: likedIds.has(s.id), isSaved: savedIds.has(s.id) })),
+    });
   } catch (error) {
     console.error('Get stories error:', error);
     res.status(500).json({ error: 'Internal server error' });
