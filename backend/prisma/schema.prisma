@@ -89,6 +89,10 @@ model AthleteProfile {
   state         String? // ISO state code e.g. "NC"
   height        String? // e.g., "6'2\""
   weight        Int? // in pounds
+  wingSpan      String? // e.g., "6'7\""
+  verticalJump  String? // e.g., "36\""
+  gpa           Float?
+  sat           Int?
   bio           String? @db.Text
   bioLink       String?
   hudlUrl       String?
@@ -104,6 +108,8 @@ model AthleteProfile {
   deals         Deal[]
   savedListEntries SavedListEntry[]
   shortLinks    AthleteShortLink[]
+  recruitingEvents RecruitingEvent[]
+  schoolOffers  SchoolOffer[]
 
   @@map("athlete_profiles")
 }
@@ -155,10 +161,13 @@ model StatLine {
   season        String // e.g., "2023-24"
   statType      String // e.g., "PPG", "APG", "RPG", "Yards", "Touchdowns"
   value         Float
+  verified      Boolean   @default(false)
+  source        String?   @db.Text
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   athlete       AthleteProfile @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  gameLogs      GameLogEntry[]
 
   @@map("stat_lines")
 }
@@ -170,7 +179,13 @@ model Highlight {
   title         String?
   description   String? @db.Text
   tags          String? // comma-separated or JSON
+  actionType    String? // "3PT", "DUNK", "ASSIST", "BLOCK", "STEAL", etc.
   opponent      String?
+  quarter       String? // "Q1", "Q2", "Q3", "Q4", "OT"
+  gameTime      String? // e.g., "1:23"
+  duration      String? // e.g., "0:14"
+  coachViews    Int       @default(0)
+  totalViews    Int       @default(0)
   gameDate      DateTime?
   season        String?
   createdAt     DateTime  @default(now())
@@ -179,6 +194,52 @@ model Highlight {
   athlete       AthleteProfile @relation(fields: [athleteId], references: [id], onDelete: Cascade)
 
   @@map("highlights")
+}
+
+model RecruitingEvent {
+  id          String    @id @default(cuid())
+  athleteId   String
+  eventType   String    // "offered" | "visited" | "committed"
+  school      String
+  isActive    Boolean   @default(false)
+  eventDate   DateTime
+  createdAt   DateTime  @default(now())
+
+  athlete     AthleteProfile @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@index([athleteId])
+  @@map("recruiting_events")
+}
+
+model SchoolOffer {
+  id           String    @id @default(cuid())
+  athleteId    String
+  schoolName   String
+  schoolAbbrev String?
+  committed    Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+
+  athlete      AthleteProfile @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@index([athleteId])
+  @@map("school_offers")
+}
+
+model GameLogEntry {
+  id          String    @id @default(cuid())
+  statLineId  String
+  opponent    String
+  score       String?   // e.g., "W 78-62"
+  gameLabel   String?   // e.g., "Playoffs R1"
+  gameDate    DateTime?
+  statValue   Float
+  tapeUrl     String?
+  createdAt   DateTime  @default(now())
+
+  statLine    StatLine  @relation(fields: [statLineId], references: [id], onDelete: Cascade)
+
+  @@index([statLineId])
+  @@map("game_log_entries")
 }
 
 // Social Media: Post

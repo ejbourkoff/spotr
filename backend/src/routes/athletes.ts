@@ -182,10 +182,13 @@ router.get('/profile/me', authenticate, requireRole('ATHLETE'), async (req: Auth
       include: {
         stats: {
           orderBy: { season: 'desc' },
+          include: { gameLogs: { orderBy: { gameDate: 'desc' } } },
         },
         highlights: {
           orderBy: { createdAt: 'desc' },
         },
+        recruitingEvents: { orderBy: { eventDate: 'asc' } },
+        schoolOffers: { orderBy: { createdAt: 'asc' } },
         user: {
           select: { id: true, avatarUrl: true },
         },
@@ -421,6 +424,90 @@ router.get('/suggested', authenticate, async (req: AuthRequest, res: Response) =
   }
 });
 
+// Add recruiting event
+router.post('/recruiting/events', authenticate, requireRole('ATHLETE'), async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const { eventType, school, isActive, eventDate } = req.body;
+    if (!eventType || !school || !eventDate) return res.status(400).json({ error: 'eventType, school, and eventDate are required' });
+    const athlete = await prisma.athleteProfile.findUnique({ where: { userId } });
+    if (!athlete) return res.status(404).json({ error: 'Athlete profile not found' });
+    const event = await prisma.recruitingEvent.create({
+      data: { athleteId: athlete.id, eventType, school, isActive: isActive ?? false, eventDate: new Date(eventDate) },
+    });
+    res.status(201).json({ event });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete recruiting event
+router.delete('/recruiting/events/:id', authenticate, requireRole('ATHLETE'), async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const athlete = await prisma.athleteProfile.findUnique({ where: { userId } });
+    if (!athlete) return res.status(404).json({ error: 'Athlete profile not found' });
+    const event = await prisma.recruitingEvent.findUnique({ where: { id: req.params.id } });
+    if (!event || event.athleteId !== athlete.id) return res.status(404).json({ error: 'Event not found' });
+    await prisma.recruitingEvent.delete({ where: { id: req.params.id } });
+    res.json({ message: 'Deleted' });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Add school offer
+router.post('/recruiting/offers', authenticate, requireRole('ATHLETE'), async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const { schoolName, schoolAbbrev, committed } = req.body;
+    if (!schoolName) return res.status(400).json({ error: 'schoolName is required' });
+    const athlete = await prisma.athleteProfile.findUnique({ where: { userId } });
+    if (!athlete) return res.status(404).json({ error: 'Athlete profile not found' });
+    const offer = await prisma.schoolOffer.create({
+      data: { athleteId: athlete.id, schoolName, schoolAbbrev, committed: committed ?? false },
+    });
+    res.status(201).json({ offer });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete school offer
+router.delete('/recruiting/offers/:id', authenticate, requireRole('ATHLETE'), async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const athlete = await prisma.athleteProfile.findUnique({ where: { userId } });
+    if (!athlete) return res.status(404).json({ error: 'Athlete profile not found' });
+    const offer = await prisma.schoolOffer.findUnique({ where: { id: req.params.id } });
+    if (!offer || offer.athleteId !== athlete.id) return res.status(404).json({ error: 'Offer not found' });
+    await prisma.schoolOffer.delete({ where: { id: req.params.id } });
+    res.json({ message: 'Deleted' });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Add game log entry
+router.post('/profile/stats/:statId/gamelog', authenticate, requireRole('ATHLETE'), async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const { statId } = req.params;
+    const { opponent, score, gameLabel, gameDate, statValue, tapeUrl } = req.body;
+    if (!opponent || statValue === undefined) return res.status(400).json({ error: 'opponent and statValue are required' });
+    const athlete = await prisma.athleteProfile.findUnique({ where: { userId } });
+    if (!athlete) return res.status(404).json({ error: 'Athlete profile not found' });
+    const stat = await prisma.statLine.findUnique({ where: { id: statId } });
+    if (!stat || stat.athleteId !== athlete.id) return res.status(404).json({ error: 'Stat not found' });
+    const entry = await prisma.gameLogEntry.create({
+      data: { statLineId: statId, opponent, score, gameLabel, gameDate: gameDate ? new Date(gameDate) : null, statValue: parseFloat(statValue), tapeUrl },
+    });
+    res.status(201).json({ entry });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get athlete profile by athleteProfile.id — must be last (wildcard catches everything)
 router.get('/:id', async (req: AuthRequest, res: Response) => {
   try {
@@ -429,8 +516,13 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
     const profile = await prisma.athleteProfile.findUnique({
       where: { id },
       include: {
-        stats: { orderBy: { season: 'desc' } },
+        stats: {
+          orderBy: { season: 'desc' },
+          include: { gameLogs: { orderBy: { gameDate: 'desc' } } },
+        },
         highlights: { orderBy: { createdAt: 'desc' } },
+        recruitingEvents: { orderBy: { eventDate: 'asc' } },
+        schoolOffers: { orderBy: { createdAt: 'asc' } },
         user: {
           select: {
             id: true,
