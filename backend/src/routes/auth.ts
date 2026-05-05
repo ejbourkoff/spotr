@@ -136,7 +136,7 @@ const profileSelect = {
     select: { id: true, name: true, sport: true, bio: true, position: true, schoolTeam: true, classYear: true, location: true, openToNIL: true, slug: true },
   },
   coachProfile: {
-    select: { id: true, name: true, organization: true, title: true, school: true },
+    select: { id: true, name: true, organization: true, title: true, school: true, bio: true, bioLink: true, location: true, sport: true, statePrefs: true, verified: true },
   },
   brandProfile: {
     select: { id: true, name: true, organizationType: true },
