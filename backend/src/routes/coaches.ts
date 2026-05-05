@@ -93,7 +93,21 @@ router.get('/search/athletes', authenticate, requireRole('COACH'), async (req: A
   }
 });
 
-// Get coach's saved lists
+const athleteSelect = {
+  id: true,
+  name: true,
+  sport: true,
+  position: true,
+  schoolTeam: true,
+  classYear: true,
+  location: true,
+  height: true,
+  weight: true,
+  avatarUrl: false, // on user, not athleteProfile
+  user: { select: { id: true, avatarUrl: true } },
+};
+
+// Get coach's saved lists (recruiting boards)
 router.get('/lists', authenticate, requireRole('COACH'), async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
@@ -104,16 +118,46 @@ router.get('/lists', authenticate, requireRole('COACH'), async (req: AuthRequest
       where: { coachId: coach.id },
       include: {
         entries: {
-          include: {
-            athlete: { include: { user: { select: { id: true } } } },
-          },
+          include: { athlete: { select: athleteSelect } },
+          orderBy: { createdAt: 'desc' },
         },
       },
+      orderBy: { createdAt: 'desc' },
     });
 
     res.json({ lists });
   } catch (error) {
     console.error('Get lists error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete a list
+router.delete('/lists/:listId', authenticate, requireRole('COACH'), async (req: AuthRequest, res: Response) => {
+  try {
+    const { listId } = req.params;
+    const coach = await prisma.coachProfile.findUnique({ where: { userId: req.userId! } });
+    if (!coach) return res.status(404).json({ error: 'Coach profile not found' });
+    const list = await prisma.savedList.findUnique({ where: { id: listId } });
+    if (!list || list.coachId !== coach.id) return res.status(404).json({ error: 'List not found' });
+    await prisma.savedList.delete({ where: { id: listId } });
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Remove athlete from list
+router.delete('/lists/:listId/athletes/:athleteId', authenticate, requireRole('COACH'), async (req: AuthRequest, res: Response) => {
+  try {
+    const { listId, athleteId } = req.params;
+    const coach = await prisma.coachProfile.findUnique({ where: { userId: req.userId! } });
+    if (!coach) return res.status(404).json({ error: 'Coach profile not found' });
+    const list = await prisma.savedList.findUnique({ where: { id: listId } });
+    if (!list || list.coachId !== coach.id) return res.status(404).json({ error: 'List not found' });
+    await prisma.savedListEntry.deleteMany({ where: { listId, athleteId } });
+    res.json({ ok: true });
+  } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
