@@ -22,6 +22,57 @@ router.get('/by-slug/:slug', async (req: AuthRequest, res: Response) => {
   }
 });
 
+// Top ranked athletes by follower count — GET /api/athletes/top-ranked
+router.get('/top-ranked', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const currentUserId = req.userId!;
+    const { sport, limit = '20' } = req.query;
+
+    const where: any = { user: { id: { not: currentUserId } } };
+    if (sport && sport !== 'ALL') {
+      where.sport = { contains: sport as string, mode: 'insensitive' };
+    }
+
+    const profiles = await prisma.athleteProfile.findMany({
+      where,
+      take: parseInt(limit as string),
+      orderBy: { user: { followers: { _count: 'desc' } } },
+      include: {
+        user: {
+          select: {
+            id: true,
+            avatarUrl: true,
+            _count: { select: { followers: true, posts: true } },
+            followers: { where: { followerId: currentUserId }, select: { id: true } },
+          },
+        },
+        stats: { take: 2, orderBy: { createdAt: 'desc' } },
+      },
+    });
+
+    const result = profiles.map((p, i) => ({
+      rank:          i + 1,
+      id:            p.id,
+      userId:        p.user.id,
+      name:          p.name,
+      sport:         p.sport,
+      position:      p.position,
+      schoolTeam:    p.schoolTeam,
+      classYear:     p.classYear,
+      height:        p.height,
+      avatarUrl:     p.user.avatarUrl,
+      followerCount: p.user._count.followers,
+      postCount:     p.user._count.posts,
+      iFollow:       p.user.followers.length > 0,
+    }));
+
+    res.json({ athletes: result });
+  } catch (error) {
+    console.error('Top ranked athletes error:', error);
+    res.status(500).json({ error: 'Failed to fetch top ranked athletes' });
+  }
+});
+
 // Rich athlete cards for SPOTR discover swipe deck
 router.get('/discover', authenticate, async (req: AuthRequest, res: Response) => {
   try {
