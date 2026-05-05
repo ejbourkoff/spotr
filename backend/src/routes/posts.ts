@@ -518,6 +518,83 @@ router.get('/trending', authenticate, async (req: AuthRequest, res: Response) =>
   }
 });
 
+// For You feed — algorithmically ranked by engagement score × sport affinity
+router.get('/for-you', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const { limit = '30' } = req.query;
+    const take = Math.min(parseInt(limit as string) || 30, 50);
+    const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+
+    // Discover sports the user cares about from who they follow
+    const follows = await prisma.follow.findMany({
+      where: { followerId: userId },
+      select: { followingId: true },
+    });
+    const followingIds = follows.map(f => f.followingId);
+    const followedProfiles = await prisma.athleteProfile.findMany({
+      where: { userId: { in: followingIds } },
+      select: { sport: true },
+    });
+    const interestedSports = new Set(followedProfiles.map(p => p.sport));
+
+    const posts = await prisma.post.findMany({
+      where: { isStory: false, isReel: false, createdAt: { gte: fourteenDaysAgo } },
+      include: {
+        author: {
+          include: {
+            athleteProfile: { select: { id: true, name: true, sport: true } },
+            coachProfile:   { select: { id: true, name: true, organization: true } },
+            brandProfile:   { select: { id: true, name: true, organizationType: true } },
+          },
+        },
+        comments: {
+          include: {
+            user: {
+              include: {
+                athleteProfile: { select: { name: true } },
+                coachProfile:   { select: { name: true } },
+                brandProfile:   { select: { name: true } },
+              },
+            },
+          },
+          orderBy: { createdAt: 'asc' },
+        },
+        _count: { select: { likes: true, comments: true, saves: true } },
+      },
+      take: 300,
+    });
+
+    const now = Date.now();
+    const scored = posts
+      .map(post => {
+        const ageHours = Math.max(1, (now - new Date(post.createdAt).getTime()) / 3_600_000);
+        const engagement = post._count.likes * 2 + post._count.comments * 3 + post._count.saves * 1.5;
+        const sport = post.author.athleteProfile?.sport;
+        const sportBonus = sport && interestedSports.has(sport) ? 1.4 : 1.0;
+        const score = (engagement / Math.pow(ageHours, 0.7)) * sportBonus;
+        return { post, score };
+      })
+      .sort((a, b) => b.score - a.score);
+
+    const topPosts = scored.slice(0, take).map(s => s.post);
+
+    const likedSet = new Set(
+      (await prisma.like.findMany({ where: { userId, postId: { in: topPosts.map(p => p.id) } }, select: { postId: true } }))
+        .map(l => l.postId)
+    );
+    const savedSet = new Set(
+      (await prisma.save.findMany({ where: { userId, postId: { in: topPosts.map(p => p.id) } }, select: { postId: true } }))
+        .map(s => s.postId)
+    );
+
+    res.json({ posts: topPosts.map(p => ({ ...p, isLiked: likedSet.has(p.id), isSaved: savedSet.has(p.id) })) });
+  } catch (error) {
+    console.error('For You feed error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Record a story view — POST /api/posts/:postId/view
 router.post('/:postId/view', authenticate, async (req: AuthRequest, res: Response) => {
   try {
