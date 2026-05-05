@@ -758,7 +758,8 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
 router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
-    const { text, mediaUrl, mediaType, isReel, isHighlight, isStory, thumbnailUrl, muxUploadId } = req.body;
+    const { text, mediaUrl, mediaType, isReel, isHighlight, isStory, thumbnailUrl, muxUploadId,
+            gameOpponent, gameLabel, gameScore, gameDate } = req.body;
 
     if (isReel) {
       if (!muxUploadId && !mediaUrl) {
@@ -810,6 +811,10 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
         muxUploadId: muxUploadId || null,
         muxAssetId: resolvedMuxAssetId,
         muxPlaybackId: resolvedMuxPlaybackId,
+        gameOpponent: gameOpponent || null,
+        gameLabel: gameLabel || null,
+        gameScore: gameScore || null,
+        gameDate: gameDate ? new Date(gameDate) : null,
       },
       include: {
         author: {

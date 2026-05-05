@@ -259,6 +259,10 @@ model Post {
   muxAssetId    String?
   muxPlaybackId String?
   highlightGroup String?  // for Highlights collections on profile
+  gameOpponent  String?
+  gameLabel     String?
+  gameScore     String?
+  gameDate      DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
