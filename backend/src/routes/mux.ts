@@ -27,6 +27,25 @@ router.post('/upload-url', authenticate, async (req: AuthRequest, res: Response)
   }
 })
 
+// Poll upload status — returns playbackId once Mux finishes processing
+router.get('/upload-status/:uploadId', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { uploadId } = req.params
+    const upload = await mux.video.uploads.retrieve(uploadId)
+
+    if (upload.status === 'asset_created' && upload.asset_id) {
+      const asset = await mux.video.assets.retrieve(upload.asset_id)
+      const playbackId = asset.playback_ids?.[0]?.id ?? null
+      res.json({ status: upload.status, playbackId })
+    } else {
+      res.json({ status: upload.status, playbackId: null })
+    }
+  } catch (error) {
+    console.error('Mux upload status error:', error)
+    res.status(500).json({ error: 'Failed to get upload status' })
+  }
+})
+
 // Mux webhook — called when a video finishes processing
 router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   try {
