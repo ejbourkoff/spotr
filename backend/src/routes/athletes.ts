@@ -22,6 +22,61 @@ router.get('/by-slug/:slug', async (req: AuthRequest, res: Response) => {
   }
 });
 
+// Rich athlete cards for SPOTR discover swipe deck
+router.get('/discover', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const currentUserId = req.userId!;
+    const { sport, position, classYear, state, limit = '20', offset = '0' } = req.query;
+
+    const where: any = { user: { id: { not: currentUserId } } };
+    if (sport)     where.sport     = { contains: sport as string,     mode: 'insensitive' };
+    if (position)  where.position  = { contains: position as string,  mode: 'insensitive' };
+    if (classYear) where.classYear = classYear as string;
+    if (state)     where.state     = state as string;
+
+    const profiles = await prisma.athleteProfile.findMany({
+      where,
+      take: parseInt(limit as string),
+      skip: parseInt(offset as string),
+      orderBy: { updatedAt: 'desc' },
+      include: {
+        user: {
+          select: {
+            id: true,
+            avatarUrl: true,
+            followers: { where: { followerId: currentUserId }, select: { id: true } },
+          },
+        },
+        stats: { take: 3, orderBy: { createdAt: 'desc' } },
+      },
+    });
+
+    const result = profiles.map(p => ({
+      id:            p.id,
+      userId:        p.user.id,
+      name:          p.name,
+      sport:         p.sport,
+      position:      p.position,
+      schoolTeam:    p.schoolTeam,
+      classYear:     p.classYear,
+      location:      p.location,
+      state:         p.state,
+      height:        p.height,
+      weight:        p.weight,
+      pinnedReelUrl: p.pinnedReelUrl,
+      avatarUrl:     p.user.avatarUrl,
+      openToNIL:     p.openToNIL,
+      topStats:      p.stats,
+      iFollow:       p.user.followers.length > 0,
+    }));
+
+    res.json({ athletes: result });
+  } catch (error) {
+    console.error('Discover athletes error:', error);
+    res.status(500).json({ error: 'Failed to fetch discover athletes' });
+  }
+});
+
 // List athletes — returns SearchUser format for iOS Discover
 // Optionally authenticated: if Bearer token present, annotates with iFollow
 router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
@@ -112,6 +167,7 @@ router.post('/profile', authenticate, requireRole('ATHLETE'), async (req: AuthRe
       weight,
       bio,
       hudlUrl,
+      pinnedReelUrl,
       openToNIL,
       openToSemiProPro,
     } = req.body;
@@ -138,6 +194,7 @@ router.post('/profile', authenticate, requireRole('ATHLETE'), async (req: AuthRe
         weight,
         bio,
         hudlUrl,
+        pinnedReelUrl,
         openToNIL: openToNIL ?? false,
         openToSemiProPro: openToSemiProPro ?? false,
       },
@@ -155,6 +212,7 @@ router.post('/profile', authenticate, requireRole('ATHLETE'), async (req: AuthRe
         weight,
         bio,
         hudlUrl,
+        pinnedReelUrl,
         openToNIL: openToNIL ?? false,
         openToSemiProPro: openToSemiProPro ?? false,
       },
@@ -540,6 +598,22 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
     res.json({ profile });
   } catch (error) {
     console.error('Get athlete error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Set or clear pinned hero reel
+router.patch('/profile/pinned-reel', authenticate, requireRole('ATHLETE'), async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const { pinnedReelUrl } = req.body;
+    const profile = await prisma.athleteProfile.update({
+      where: { userId },
+      data: { pinnedReelUrl: pinnedReelUrl || null },
+    });
+    res.json({ profile });
+  } catch (error) {
+    console.error('Set pinned reel error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

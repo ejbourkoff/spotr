@@ -96,6 +96,7 @@ model AthleteProfile {
   bio           String? @db.Text
   bioLink       String?
   hudlUrl       String?
+  pinnedReelUrl String?
   openToNIL     Boolean   @default(false)
   openToSemiProPro Boolean @default(false)
   createdAt     DateTime  @default(now())
