@@ -17,7 +17,10 @@ router.get('/search', authenticate, async (req: AuthRequest, res: Response) => {
         id: { not: currentUserId },
         OR: [
           { athleteProfile: { name: { contains: q, mode: 'insensitive' } } },
+          { athleteProfile: { schoolTeam: { contains: q, mode: 'insensitive' } } },
+          { athleteProfile: { sport: { contains: q, mode: 'insensitive' } } },
           { coachProfile:   { name: { contains: q, mode: 'insensitive' } } },
+          { coachProfile:   { organization: { contains: q, mode: 'insensitive' } } },
           { brandProfile:   { name: { contains: q, mode: 'insensitive' } } },
           { email: { contains: q, mode: 'insensitive' } },
         ],
@@ -31,7 +34,7 @@ router.get('/search', authenticate, async (req: AuthRequest, res: Response) => {
         coachProfile:   { select: { id: true, name: true, organization: true } },
         brandProfile:   { select: { id: true, name: true, organizationType: true } },
       },
-      take: 20,
+      take: 30,
     });
 
     // Annotate with follow status relative to current user
