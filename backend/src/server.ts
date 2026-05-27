@@ -18,6 +18,7 @@ import publicRoutes from './routes/public';
 import uploadRoutes from './routes/uploads';
 import muxRoutes from './routes/mux';
 import notificationRoutes from './routes/notifications';
+import connectionRoutes from './routes/connections';
 
 dotenv.config();
 
@@ -63,6 +64,7 @@ app.use('/api/public', publicRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/mux', muxRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/connections', connectionRoutes);
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 app.listen(PORT, () => {
