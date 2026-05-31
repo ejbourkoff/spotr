@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { OAuth2Client } from 'google-auth-library';
+import appleSignin from 'apple-signin-auth';
 import prisma from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { loginLimiter } from '../middleware/rateLimiters';
@@ -239,6 +240,58 @@ router.post('/google', async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Google auth error:', error?.message || error);
     res.status(401).json({ error: `Google auth failed: ${error?.message || 'Unknown error'}` });
+  }
+});
+
+// Apple Sign-In
+router.post('/apple', async (req: Request, res: Response) => {
+  try {
+    const { identityToken, fullName } = req.body;
+    if (!identityToken) return res.status(400).json({ error: 'identityToken required' });
+
+    const claims = await appleSignin.verifyIdToken(identityToken, {
+      audience: 'com.evan.SPOTR',
+      ignoreExpiration: false,
+    }) as { sub: string; email?: string };
+
+    const appleId = claims.sub;
+    const email = claims.email;
+
+    // Find by appleId first, then fall back to email
+    let user = await prisma.user.findUnique({ where: { appleId } });
+
+    if (!user && email) {
+      user = await prisma.user.findUnique({ where: { email } });
+      if (user) {
+        // Link Apple ID to existing account
+        user = await prisma.user.update({ where: { id: user.id }, data: { appleId } });
+      }
+    }
+
+    if (!user) {
+      // New account — need an email to create one
+      const accountEmail = email ?? `apple_${appleId}@privaterelay.appleid.com`;
+      const displayName = [fullName?.givenName, fullName?.familyName].filter(Boolean).join(' ') || accountEmail.split('@')[0];
+
+      user = await prisma.user.create({
+        data: { email: accountEmail, password: '', role: 'ATHLETE', appleId },
+      });
+      await prisma.athleteProfile.create({
+        data: { userId: user.id, name: displayName, sport: '' },
+      });
+    }
+
+    const token = jwt.sign(
+      { userId: user.id, role: user.role },
+      process.env.JWT_SECRET!,
+      { expiresIn: '7d' }
+    );
+
+    const fullUser = await prisma.user.findUnique({ where: { id: user.id }, select: profileSelect });
+    res.json({ user: fullUser, token });
+  } catch (error: any) {
+    console.error('Apple auth error:', error?.message || error);
+    res.status(401).json({ error: `Apple auth failed: ${error?.message || 'Unknown error'}` });
   }
 });
 
