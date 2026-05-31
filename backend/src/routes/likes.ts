@@ -52,6 +52,33 @@ router.delete('/:postId/like', authenticate, async (req: AuthRequest, res: Respo
   }
 });
 
+router.get('/my-likes', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const likes = await prisma.like.findMany({
+      where: { userId: req.userId! },
+      include: {
+        post: {
+          include: {
+            author: {
+              include: {
+                athleteProfile: { select: { name: true, sport: true } },
+                coachProfile: { select: { name: true, organization: true } },
+                brandProfile: { select: { name: true, organizationType: true } },
+              },
+            },
+            _count: { select: { likes: true, comments: true, saves: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ posts: likes.map(l => l.post) });
+  } catch (error) {
+    console.error('Fetch liked posts error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/:postId/likes', async (req: AuthRequest, res: Response) => {
   try {
     const likes = await prisma.like.findMany({

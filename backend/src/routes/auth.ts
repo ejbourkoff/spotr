@@ -295,4 +295,69 @@ router.post('/apple', async (req: Request, res: Response) => {
   }
 });
 
+// Change password
+router.put('/change-password', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) return res.status(400).json({ error: 'currentPassword and newPassword required' });
+    if (newPassword.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters' });
+
+    const user = await prisma.user.findUnique({ where: { id: req.userId! } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const isValid = user.password ? await bcrypt.compare(currentPassword, user.password) : false;
+    if (!isValid) return res.status(401).json({ error: 'Current password is incorrect' });
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({ where: { id: req.userId! }, data: { password: hashed } });
+    res.json({ message: 'Password updated' });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Change email
+router.put('/change-email', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { newEmail, password } = req.body;
+    if (!newEmail || !password) return res.status(400).json({ error: 'newEmail and password required' });
+
+    const user = await prisma.user.findUnique({ where: { id: req.userId! } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const isValid = user.password ? await bcrypt.compare(password, user.password) : false;
+    if (!isValid) return res.status(401).json({ error: 'Password is incorrect' });
+
+    const existing = await prisma.user.findUnique({ where: { email: newEmail.toLowerCase() } });
+    if (existing) return res.status(400).json({ error: 'Email already in use' });
+
+    await prisma.user.update({ where: { id: req.userId! }, data: { email: newEmail.toLowerCase() } });
+    res.json({ message: 'Email updated' });
+  } catch (error) {
+    console.error('Change email error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete account
+router.delete('/account', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { password } = req.body;
+    if (!password) return res.status(400).json({ error: 'password required' });
+
+    const user = await prisma.user.findUnique({ where: { id: req.userId! } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const isValid = user.password ? await bcrypt.compare(password, user.password) : false;
+    if (!isValid) return res.status(401).json({ error: 'Password is incorrect' });
+
+    await prisma.user.delete({ where: { id: req.userId! } });
+    res.json({ message: 'Account deleted' });
+  } catch (error) {
+    console.error('Delete account error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;
