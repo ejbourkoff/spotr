@@ -237,8 +237,8 @@ router.post('/google', async (req: Request, res: Response) => {
     const fullUser = await prisma.user.findUnique({ where: { id: user.id }, select: profileSelect });
     res.json({ user: fullUser, token });
   } catch (error: any) {
-    console.error('Google auth error:', error);
-    res.status(401).json({ error: 'Google sign-in failed' });
+    console.error('Google auth error:', error?.message || error);
+    res.status(401).json({ error: `Google auth failed: ${error?.message || 'Unknown error'}` });
   }
 });
 
