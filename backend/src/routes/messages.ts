@@ -148,7 +148,7 @@ router.post('/share-post', authenticate, async (req: AuthRequest, res: Response)
       include: {
         sender: userInclude,
         receiver: userInclude,
-        sharedPost: { select: { id: true, text: true, mediaUrl: true, thumbnailUrl: true, mediaType: true } },
+        sharedPost: { select: { id: true, text: true, mediaUrl: true, thumbnailUrl: true, mediaType: true, author: { select: { id: true, avatarUrl: true, athleteProfile: { select: { name: true } }, coachProfile: { select: { name: true } }, brandProfile: { select: { name: true } } } } } },
       },
     })
     res.status(201).json({ message })
