@@ -167,10 +167,11 @@
 <div id="login-screen">
   <div class="login-box">
     <div class="login-logo">SPOTR<span> Admin</span></div>
-    <div class="login-sub">Enter your admin secret to continue</div>
-    <input type="password" id="secret-input" placeholder="Admin secret" autocomplete="current-password"/>
+    <div class="login-sub">Sign in with your SPOTR account</div>
+    <input type="email" id="email-input" placeholder="Email" autocomplete="email" value="ejbourkoff@gmail.com"/>
+    <input type="password" id="password-input" placeholder="Password" autocomplete="current-password"/>
     <button onclick="doLogin()">Sign In</button>
-    <div class="login-error" id="login-error">Invalid secret. Check your ADMIN_SECRET env var.</div>
+    <div class="login-error" id="login-error">Invalid credentials or not authorized as admin.</div>
   </div>
 </div>
 
@@ -308,21 +309,28 @@ async function api(path) {
 }
 
 async function doLogin() {
-  const val = document.getElementById('secret-input').value.trim();
-  if (!val) return;
-  SECRET = val;
+  const email = document.getElementById('email-input').value.trim();
+  const password = document.getElementById('password-input').value;
+  if (!email || !password) return;
   try {
-    await api('/overview');
-    sessionStorage.setItem('spotr_admin', val);
+    const r = await fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!r.ok) { document.getElementById('login-error').style.display = 'block'; return; }
+    const { token } = await r.json();
+    SECRET = token;
+    sessionStorage.setItem('spotr_admin', token);
+    document.getElementById('login-error').style.display = 'none';
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     loadOverview();
   } catch {
     document.getElementById('login-error').style.display = 'block';
-    SECRET = '';
   }
 }
-document.getElementById('secret-input').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+document.getElementById('password-input').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 
 function logout() {
   sessionStorage.removeItem('spotr_admin');
