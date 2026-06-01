@@ -184,7 +184,7 @@ router.get('/:userId/followers', async (req: AuthRequest, res: Response) => {
       orderBy: { createdAt: 'desc' },
     });
 
-    res.json({ followers, count: followers.length });
+    res.json({ followers: followers.map(f => f.follower), count: followers.length });
   } catch (error) {
     console.error('Get followers error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -216,7 +216,7 @@ router.get('/:userId/following', async (req: AuthRequest, res: Response) => {
       orderBy: { createdAt: 'desc' },
     });
 
-    res.json({ following, count: following.length });
+    res.json({ following: following.map(f => f.following), count: following.length });
   } catch (error) {
     console.error('Get following error:', error);
     res.status(500).json({ error: 'Internal server error' });
