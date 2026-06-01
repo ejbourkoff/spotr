@@ -182,7 +182,6 @@
     <div class="header-badge">LIVE</div>
     <div class="header-spacer"></div>
     <div class="header-env" id="header-env"></div>
-    <button class="btn-logout" onclick="logout()">Sign Out</button>
   </header>
 
   <div class="layout">
@@ -268,7 +267,7 @@
 </div>
 
 <script>
-let SECRET = '';
+let SECRET = 'open';
 let userPage = 1, userRole = 'ALL', userSearch = '';
 let postPage = 1, postType = '';
 let chartSignups, chartPosts;
@@ -303,8 +302,7 @@ function avatarEl(u) {
 }
 
 async function api(path) {
-  const r = await fetch('/api/admin'+path, { headers: { Authorization: 'Bearer '+SECRET } });
-  if (r.status===401) { logout(); throw new Error('unauth'); }
+  const r = await fetch('/api/admin'+path);
   return r.json();
 }
 
@@ -698,13 +696,9 @@ async function loadActivity() {
 }
 
 // ─── INIT ──────────────────────────────────────────────────────────────────────
-const stored = sessionStorage.getItem('spotr_admin');
-if (stored) {
-  SECRET = stored;
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
-  loadOverview();
-}
+document.getElementById('login-screen').style.display = 'none';
+document.getElementById('app').style.display = 'block';
+loadOverview();
 </script>
 </body>
 </html>

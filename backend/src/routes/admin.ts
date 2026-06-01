@@ -1,59 +1,12 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
 
 const router = Router();
 const prisma = new PrismaClient();
 
-const ADMIN_EMAIL = 'ejbourkoff@gmail.com';
-
-function adminAuth(req: Request, res: Response, next: NextFunction): void {
-  const auth = req.headers.authorization;
-  if (!auth?.startsWith('Bearer ')) { res.status(401).json({ error: 'Unauthorized' }); return; }
-  try {
-    const payload = jwt.verify(auth.slice(7), process.env.JWT_SECRET!) as any;
-    if (!payload.adminSession) { res.status(401).json({ error: 'Unauthorized' }); return; }
-    next();
-  } catch {
-    res.status(401).json({ error: 'Session expired' });
-  }
+function adminAuth(_req: Request, _res: Response, next: NextFunction): void {
+  next();
 }
-
-// Admin login — only ejbourkoff@gmail.com
-// Auth priority: ADMIN_PASSWORD env var (if set) > SPOTR account password
-router.post('/login', async (req: Request, res: Response) => {
-  try {
-    const { email, password } = req.body;
-    if (email?.toLowerCase() !== ADMIN_EMAIL) {
-      res.status(401).json({ error: 'Not authorized as admin' });
-      return;
-    }
-
-    // If ADMIN_PASSWORD env var is set, use that directly
-    const adminPassword = process.env.ADMIN_PASSWORD;
-    if (adminPassword) {
-      if (password !== adminPassword) {
-        res.status(401).json({ error: 'Invalid credentials' });
-        return;
-      }
-      const token = jwt.sign({ adminSession: true }, process.env.JWT_SECRET!, { expiresIn: '24h' });
-      res.json({ token });
-      return;
-    }
-
-    // Fallback: verify against SPOTR account password
-    const user = await prisma.user.findUnique({ where: { email: ADMIN_EMAIL } });
-    if (!user?.password) { res.status(401).json({ error: 'Invalid credentials' }); return; }
-    const valid = await bcrypt.compare(password, user.password);
-    if (!valid) { res.status(401).json({ error: 'Invalid credentials' }); return; }
-    const token = jwt.sign({ adminSession: true, userId: user.id }, process.env.JWT_SECRET!, { expiresIn: '24h' });
-    res.json({ token });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal error' });
-  }
-});
 
 // Overview stats
 router.get('/overview', adminAuth, async (_req, res) => {
