@@ -800,7 +800,7 @@ async function loadAnalytics() {
           <tbody>
             ${(() => {
               const max = Math.max(...data.topEvents.map(r => r.count));
-              const colors = { screen_view:'#7C3AED', post_like:'#ef4444', post_create:'#22c55e', post_share_open:'#f59e0b', profile_view:'#3b82f6', app_foreground:'#888', login_success:'#4ade80', signup_complete:'#c084fc' };
+              const colors = { screen_view:'#7C3AED', post_like:'#ef4444', post_create:'#22c55e', post_share_open:'#f59e0b', profile_view:'#3b82f6', app_foreground:'#888', login_success:'#4ade80', signup_complete:'#c084fc', post_comment:'#06b6d4', post_view:'#8b5cf6', follow:'#4ade80', unfollow:'#f87171', app_background:'#6b7280' };
               return data.topEvents.map(r => `
                 <tr>
                   <td><code style="font-size:11px;color:var(--purple-light)">${r.event}</code></td>
