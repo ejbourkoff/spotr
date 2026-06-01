@@ -1,6 +1,7 @@
 import express, { Response } from 'express';
 import prisma from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { sendPush } from '../lib/apns';
 
 const router = express.Router();
 
@@ -79,7 +80,39 @@ router.patch('/:id/read', authenticate, async (req: AuthRequest, res: Response) 
   }
 });
 
+// POST /api/notifications/device-token
+router.post('/device-token', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { token } = req.body;
+    if (!token || typeof token !== 'string') {
+      res.status(400).json({ error: 'token required' });
+      return;
+    }
+    await prisma.deviceToken.upsert({
+      where: { token },
+      create: { userId: req.userId!, token, platform: 'ios' },
+      update: { userId: req.userId! },
+    });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;
+
+function pushBody(type: string, actorName: string): string {
+  switch (type) {
+    case 'like':                return `${actorName} liked your post`;
+    case 'comment':             return `${actorName} commented on your post`;
+    case 'follow':              return `${actorName} started following you`;
+    case 'share':               return `${actorName} shared your post`;
+    case 'mention':             return `${actorName} mentioned you`;
+    case 'connection_request':  return `${actorName} wants to connect`;
+    case 'connection_accepted': return `${actorName} accepted your connection`;
+    default:                    return `New notification from ${actorName}`;
+  }
+}
 
 // Helper used by other routes to fire notifications without blocking responses
 export async function createNotification(
@@ -88,11 +121,32 @@ export async function createNotification(
   type: string,
   postId?: string
 ) {
-  if (userId === actorId) return; // never notify yourself
+  if (userId === actorId) return;
   try {
     await prisma.notification.create({
       data: { userId, actorId, type, postId: postId ?? null },
     });
+
+    // Send push notification
+    const [tokens, actor] = await Promise.all([
+      prisma.deviceToken.findMany({ where: { userId }, select: { token: true } }),
+      prisma.user.findUnique({
+        where: { id: actorId },
+        select: {
+          athleteProfile: { select: { name: true } },
+          coachProfile:   { select: { name: true } },
+          brandProfile:   { select: { name: true } },
+        },
+      }),
+    ]);
+
+    if (tokens.length > 0) {
+      const actorName = actor?.athleteProfile?.name ?? actor?.coachProfile?.name ?? actor?.brandProfile?.name ?? 'Someone';
+      const body = pushBody(type, actorName);
+      const data: Record<string, string> = { notificationType: type, actorId };
+      if (postId) data.postId = postId;
+      await sendPush(tokens.map(t => t.token), body, data);
+    }
   } catch {
     // non-fatal
   }

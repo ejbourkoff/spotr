@@ -82,6 +82,7 @@ model User {
   storyViews            StoryView[]
   profileViewsReceived  ProfileView[] @relation("ProfileViewed")
   profileViewsMade      ProfileView[] @relation("ProfileViewer")
+  deviceTokens          DeviceToken[]
 
   @@map("users")
 }
@@ -505,4 +506,16 @@ model AthleteShortLink {
   createdAt DateTime       @default(now())
 
   @@map("athlete_short_links")
+}
+
+model DeviceToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  platform  String   @default("ios")
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("device_tokens")
 }
