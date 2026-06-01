@@ -80,6 +80,24 @@ router.patch('/:id/read', authenticate, async (req: AuthRequest, res: Response) 
   }
 });
 
+// POST /api/notifications/test-push — sends a test push to yourself
+router.post('/test-push', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const tokens = await prisma.deviceToken.findMany({
+      where: { userId: req.userId! },
+      select: { token: true },
+    });
+    if (tokens.length === 0) {
+      res.status(404).json({ error: 'No device tokens registered for this user' });
+      return;
+    }
+    await sendPush(tokens.map(t => t.token), 'Test push from SPOTR 🏆', { notificationType: 'test' });
+    res.json({ success: true, tokenCount: tokens.length });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // POST /api/notifications/device-token
 router.post('/device-token', authenticate, async (req: AuthRequest, res: Response) => {
   try {
