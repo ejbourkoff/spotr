@@ -72,7 +72,7 @@ router.get('/my-likes', authenticate, async (req: AuthRequest, res: Response) =>
       },
       orderBy: { createdAt: 'desc' },
     });
-    res.json({ posts: likes.map(l => l.post) });
+    res.json({ posts: likes.map(l => ({ ...l.post, isLiked: true, isSaved: false })) });
   } catch (error) {
     console.error('Fetch liked posts error:', error);
     res.status(500).json({ error: 'Internal server error' });

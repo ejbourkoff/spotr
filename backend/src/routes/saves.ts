@@ -130,7 +130,7 @@ router.get('/saved', authenticate, async (req: AuthRequest, res: Response) => {
       orderBy: { createdAt: 'desc' },
     });
 
-    res.json({ savedPosts: saves.map((s) => s.post) });
+    res.json({ savedPosts: saves.map((s) => ({ ...s.post, isLiked: false, isSaved: true })) });
   } catch (error) {
     console.error('Get saved posts error:', error);
     res.status(500).json({ error: 'Internal server error' });
