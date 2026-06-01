@@ -519,3 +519,39 @@ model DeviceToken {
   @@index([userId])
   @@map("device_tokens")
 }
+
+model AnalyticsSession {
+  id           String    @id @default(cuid())
+  sessionKey   String    @unique
+  userId       String?
+  startedAt    DateTime  @default(now())
+  endedAt      DateTime?
+  durationMs   Int?
+  screenViews  Int       @default(0)
+  appVersion   String?
+  osVersion    String?
+
+  events       AnalyticsEvent[]
+
+  @@index([userId])
+  @@index([startedAt])
+  @@map("analytics_sessions")
+}
+
+model AnalyticsEvent {
+  id         String   @id @default(cuid())
+  sessionKey String
+  userId     String?
+  event      String
+  screen     String?
+  properties String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  session    AnalyticsSession @relation(fields: [sessionKey], references: [sessionKey], onDelete: Cascade)
+
+  @@index([sessionKey])
+  @@index([userId])
+  @@index([event, createdAt])
+  @@index([createdAt])
+  @@map("analytics_events")
+}

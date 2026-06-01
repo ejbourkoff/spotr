@@ -20,6 +20,7 @@ import muxRoutes from './routes/mux';
 import notificationRoutes from './routes/notifications';
 import connectionRoutes from './routes/connections';
 import adminRoutes from './routes/admin';
+import analyticsRoutes from './routes/analytics';
 
 dotenv.config();
 
@@ -68,6 +69,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/connections', connectionRoutes);
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 app.use('/api/admin', adminRoutes);
+app.use('/api/analytics', analyticsRoutes);
 app.use('/admin', express.static(path.join(process.cwd(), 'public/admin')));
 app.get('/admin', (_req, res) => res.sendFile(path.join(process.cwd(), 'public/admin/index.html')));
 

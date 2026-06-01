@@ -187,7 +187,10 @@
   <div class="layout">
     <nav class="sidebar">
       <div class="nav-label">Dashboard</div>
-      <div class="nav-item active" onclick="showPage('overview')" id="nav-overview">
+      <div class="nav-item active" onclick="showPage('analytics')" id="nav-analytics">
+        <span class="nav-icon">📈</span> Analytics
+      </div>
+      <div class="nav-item" onclick="showPage('overview')" id="nav-overview">
         <span class="nav-icon">📊</span> Overview
       </div>
       <div class="nav-label">Content</div>
@@ -210,8 +213,15 @@
     </nav>
 
     <main class="main">
+      <!-- ANALYTICS -->
+      <div class="page active" id="page-analytics">
+        <div class="page-title">Analytics</div>
+        <div class="page-sub">Sessions, engagement, and user behavior</div>
+        <div id="analytics-content"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+      </div>
+
       <!-- OVERVIEW -->
-      <div class="page active" id="page-overview">
+      <div class="page" id="page-overview">
         <div class="page-title">Overview</div>
         <div class="page-sub">Platform health at a glance</div>
         <div id="overview-content"><div class="loading"><div class="spinner"></div>Loading...</div></div>
@@ -695,10 +705,148 @@ async function loadActivity() {
     </div>` : '<div class="empty"><div class="empty-icon">💤</div><div class="empty-text">No activity yet</div></div>';
 }
 
+// ─── ANALYTICS ────────────────────────────────────────────────────────────────
+async function loadAnalytics() {
+  const data = await api('/analytics');
+
+  function fmtDur(ms) {
+    if (!ms || ms <= 0) return '—';
+    const s = Math.floor(ms / 1000);
+    if (s < 60) return s + 's';
+    return Math.floor(s / 60) + 'm ' + (s % 60) + 's';
+  }
+
+  const nvr = data.newVsReturning || [];
+  const newU = nvr.find(r => r.type === 'new')?._count || nvr.find(r => r.type === 'new')?.count || 0;
+  const retU = nvr.find(r => r.type === 'returning')?._count || nvr.find(r => r.type === 'returning')?.count || 0;
+
+  document.getElementById('analytics-content').innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card purple">
+        <div class="stat-label">DAU Today</div>
+        <div class="stat-value">${fmt(data.today.dau)}</div>
+        <div class="stat-sub">Unique active users</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Sessions Today</div>
+        <div class="stat-value">${fmt(data.today.sessions)}</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-label">Avg Session</div>
+        <div class="stat-value" style="font-size:20px">${fmtDur(data.today.avgSessionMs)}</div>
+      </div>
+      <div class="stat-card blue">
+        <div class="stat-label">Screen Views Today</div>
+        <div class="stat-value">${fmt(data.today.screenViews)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Events Today</div>
+        <div class="stat-value">${fmt(data.today.events)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">New Users</div>
+        <div class="stat-value">${fmt(newU)}</div>
+        <div class="stat-sub">${fmt(retU)} returning</div>
+      </div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Daily Active Users — Last 30 Days</div>
+        <div class="chart-wrap"><canvas id="chart-dau"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Sessions — Last 30 Days</div>
+        <div class="chart-wrap"><canvas id="chart-sessions"></canvas></div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="table-card">
+        <div class="table-header">
+          <span class="table-header-title">Top Screens</span>
+          <span class="table-header-sub">By views</span>
+        </div>
+        ${data.topScreens?.length ? `
+        <table>
+          <thead><tr><th>Screen</th><th>Views</th><th>Share</th></tr></thead>
+          <tbody>
+            ${(() => {
+              const total = data.topScreens.reduce((s, r) => s + r.views, 0);
+              return data.topScreens.map(r => `
+                <tr>
+                  <td><strong>${r.screen}</strong></td>
+                  <td>${fmt(r.views)}</td>
+                  <td>
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <div style="height:6px;background:var(--purple);border-radius:3px;width:${Math.round(r.views/total*100)}px;max-width:80px"></div>
+                      <span style="color:var(--muted);font-size:11px">${Math.round(r.views/total*100)}%</span>
+                    </div>
+                  </td>
+                </tr>`).join('');
+            })()}
+          </tbody>
+        </table>` : '<div class="empty"><div class="empty-icon">📱</div><div class="empty-text">No screen data yet — open the app to start tracking</div></div>'}
+      </div>
+
+      <div class="table-card">
+        <div class="table-header">
+          <span class="table-header-title">Top Events</span>
+          <span class="table-header-sub">All time</span>
+        </div>
+        ${data.topEvents?.length ? `
+        <table>
+          <thead><tr><th>Event</th><th>Count</th><th>Bar</th></tr></thead>
+          <tbody>
+            ${(() => {
+              const max = Math.max(...data.topEvents.map(r => r.count));
+              const colors = { screen_view:'#7C3AED', post_like:'#ef4444', post_create:'#22c55e', post_share_open:'#f59e0b', profile_view:'#3b82f6', app_foreground:'#888', login_success:'#4ade80', signup_complete:'#c084fc' };
+              return data.topEvents.map(r => `
+                <tr>
+                  <td><code style="font-size:11px;color:var(--purple-light)">${r.event}</code></td>
+                  <td>${fmt(r.count)}</td>
+                  <td>
+                    <div style="height:6px;border-radius:3px;width:${Math.round(r.count/max*80)}px;background:${colors[r.event]||'var(--faint)'}"></div>
+                  </td>
+                </tr>`).join('');
+            })()}
+          </tbody>
+        </table>` : '<div class="empty"><div class="empty-icon">⚡</div><div class="empty-text">No events yet</div></div>'}
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-header">
+        <span class="table-header-title">Recent Sessions</span>
+        <span class="table-header-sub">Last 30</span>
+      </div>
+      ${data.recentSessions?.length ? `
+      <table>
+        <thead><tr><th>Session</th><th>User</th><th>Duration</th><th>Screens</th><th>OS</th><th>App</th><th>Started</th></tr></thead>
+        <tbody>
+          ${data.recentSessions.map(s => `
+            <tr>
+              <td style="font-family:monospace;font-size:11px;color:var(--faint)">${s.sessionKey.slice(0,8)}…</td>
+              <td style="color:var(--muted);font-size:12px">${s.userId ? s.userId.slice(0,8)+'…' : '—'}</td>
+              <td>${fmtDur(s.durationMs)}</td>
+              <td>${s.screenViews || 0}</td>
+              <td style="color:var(--muted)">${s.osVersion || '—'}</td>
+              <td style="color:var(--muted)">${s.appVersion || '—'}</td>
+              <td style="color:var(--muted)">${timeAgo(s.startedAt)}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>` : '<div class="empty"><div class="empty-icon">💤</div><div class="empty-text">No sessions yet — open the app to start a session</div></div>'}
+    </div>
+  `;
+
+  renderChart('chart-dau', data.dauByDay, '#7C3AED', 'DAU');
+  renderChart('chart-sessions', data.sessionsByDay, '#3b82f6', 'Sessions');
+}
+
 // ─── INIT ──────────────────────────────────────────────────────────────────────
 document.getElementById('login-screen').style.display = 'none';
 document.getElementById('app').style.display = 'block';
-loadOverview();
+loadAnalytics();
 </script>
 </body>
 </html>

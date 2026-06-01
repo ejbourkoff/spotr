@@ -327,4 +327,55 @@ router.delete('/posts/:id', adminAuth, async (req, res) => {
   }
 });
 
+// Analytics dashboard data
+router.get('/analytics', adminAuth, async (_req, res) => {
+  try {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+
+    const [
+      dauToday, sessionsToday, avgDuration, screenViewsToday, eventsToday,
+      dauByDay, sessionsByDay, topScreens, topEvents, recentSessions, newVsReturning,
+    ] = await Promise.all([
+      prisma.$queryRaw<{ count: number }[]>`SELECT COUNT(DISTINCT user_id)::int as count FROM analytics_events WHERE created_at >= ${today} AND user_id IS NOT NULL`,
+      prisma.analyticsSession.count({ where: { startedAt: { gte: today } } }),
+      prisma.$queryRaw<{ avg: number }[]>`SELECT AVG(duration_ms)::int as avg FROM analytics_sessions WHERE duration_ms IS NOT NULL AND duration_ms > 0`,
+      prisma.analyticsEvent.count({ where: { event: 'screen_view', createdAt: { gte: today } } }),
+      prisma.analyticsEvent.count({ where: { createdAt: { gte: today } } }),
+      prisma.$queryRaw<{ date: Date; count: number }[]>`SELECT DATE(created_at) as date, COUNT(DISTINCT user_id)::int as count FROM analytics_events WHERE created_at >= NOW() - INTERVAL '30 days' AND user_id IS NOT NULL GROUP BY DATE(created_at) ORDER BY date ASC`,
+      prisma.$queryRaw<{ date: Date; count: number }[]>`SELECT DATE(started_at) as date, COUNT(*)::int as count FROM analytics_sessions WHERE started_at >= NOW() - INTERVAL '30 days' GROUP BY DATE(started_at) ORDER BY date ASC`,
+      prisma.$queryRaw<{ screen: string; views: number }[]>`SELECT screen, COUNT(*)::int as views FROM analytics_events WHERE event = 'screen_view' AND screen IS NOT NULL GROUP BY screen ORDER BY views DESC LIMIT 12`,
+      prisma.$queryRaw<{ event: string; count: number }[]>`SELECT event, COUNT(*)::int as count FROM analytics_events GROUP BY event ORDER BY count DESC LIMIT 20`,
+      prisma.analyticsSession.findMany({
+        take: 30,
+        orderBy: { startedAt: 'desc' },
+        select: { sessionKey: true, userId: true, startedAt: true, endedAt: true, durationMs: true, screenViews: true, appVersion: true, osVersion: true },
+      }),
+      prisma.$queryRaw<{ type: string; count: number }[]>`
+        SELECT CASE WHEN s.session_count = 1 THEN 'new' ELSE 'returning' END as type, COUNT(*)::int as count
+        FROM (SELECT user_id, COUNT(*) as session_count FROM analytics_sessions WHERE user_id IS NOT NULL GROUP BY user_id) s
+        GROUP BY type
+      `,
+    ]);
+
+    res.json({
+      today: {
+        dau: dauToday[0]?.count || 0,
+        sessions: sessionsToday,
+        avgSessionMs: avgDuration[0]?.avg || 0,
+        screenViews: screenViewsToday,
+        events: eventsToday,
+      },
+      dauByDay: dauByDay.map(r => ({ date: r.date, count: Number(r.count) })),
+      sessionsByDay: sessionsByDay.map(r => ({ date: r.date, count: Number(r.count) })),
+      topScreens: topScreens.map(r => ({ screen: r.screen, views: Number(r.views) })),
+      topEvents: topEvents.map(r => ({ event: r.event, count: Number(r.count) })),
+      recentSessions,
+      newVsReturning: newVsReturning.map(r => ({ type: r.type, count: Number(r.count) })),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal error' });
+  }
+});
+
 export default router;
