@@ -45,7 +45,7 @@ app.use(express.json({ limit: '500kb' }));
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'SPOTR API is running', v: '2fb8f40' });
+  res.json({ status: 'ok', message: 'SPOTR API is running', v: '4a718d4' });
 });
 
 // Routes
