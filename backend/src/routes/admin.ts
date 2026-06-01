@@ -21,6 +21,7 @@ function adminAuth(req: Request, res: Response, next: NextFunction): void {
 }
 
 // Admin login — only ejbourkoff@gmail.com
+// Auth priority: ADMIN_PASSWORD env var (if set) > SPOTR account password
 router.post('/login', async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
@@ -28,6 +29,20 @@ router.post('/login', async (req: Request, res: Response) => {
       res.status(401).json({ error: 'Not authorized as admin' });
       return;
     }
+
+    // If ADMIN_PASSWORD env var is set, use that directly
+    const adminPassword = process.env.ADMIN_PASSWORD;
+    if (adminPassword) {
+      if (password !== adminPassword) {
+        res.status(401).json({ error: 'Invalid credentials' });
+        return;
+      }
+      const token = jwt.sign({ adminSession: true }, process.env.JWT_SECRET!, { expiresIn: '24h' });
+      res.json({ token });
+      return;
+    }
+
+    // Fallback: verify against SPOTR account password
     const user = await prisma.user.findUnique({ where: { email: ADMIN_EMAIL } });
     if (!user?.password) { res.status(401).json({ error: 'Invalid credentials' }); return; }
     const valid = await bcrypt.compare(password, user.password);
