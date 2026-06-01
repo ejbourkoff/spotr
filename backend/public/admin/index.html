@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SPOTR Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#09090f;--surface:#111118;--card:#16161f;--border:#1f1f2e;
+    --purple:#7C3AED;--purple-light:#9f67ff;--purple-dim:#2d1b69;
+    --text:#e2e2f0;--muted:#888899;--faint:#444458;
+    --green:#22c55e;--red:#ef4444;--yellow:#f59e0b;--blue:#3b82f6;
+    --sidebar:220px;--header:56px;
+  }
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;font-size:14px;min-height:100vh}
+
+  /* LOGIN */
+  #login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:radial-gradient(ellipse at 50% 0%,#1a0a40 0%,var(--bg) 70%)}
+  .login-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px;width:360px;text-align:center}
+  .login-logo{font-size:28px;font-weight:800;letter-spacing:-0.5px;color:#fff;margin-bottom:4px}
+  .login-logo span{color:var(--purple-light)}
+  .login-sub{color:var(--muted);font-size:13px;margin-bottom:32px}
+  .login-box input{width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 14px;color:var(--text);font-size:14px;outline:none;margin-bottom:12px;transition:border .15s}
+  .login-box input:focus{border-color:var(--purple)}
+  .login-box button{width:100%;background:var(--purple);border:none;border-radius:8px;padding:13px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s}
+  .login-box button:hover{background:var(--purple-light)}
+  .login-error{color:var(--red);font-size:13px;margin-top:8px;display:none}
+
+  /* APP SHELL */
+  #app{display:none;min-height:100vh}
+  .header{position:fixed;top:0;left:0;right:0;height:var(--header);background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:12px;z-index:100}
+  .header-logo{font-weight:800;font-size:16px;letter-spacing:-0.3px}
+  .header-logo span{color:var(--purple-light)}
+  .header-badge{background:var(--purple-dim);color:var(--purple-light);font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px}
+  .header-spacer{flex:1}
+  .header-env{font-size:12px;color:var(--muted)}
+  .btn-logout{background:transparent;border:1px solid var(--border);border-radius:6px;padding:6px 12px;color:var(--muted);font-size:13px;cursor:pointer;transition:all .15s}
+  .btn-logout:hover{border-color:var(--red);color:var(--red)}
+
+  .layout{display:flex;padding-top:var(--header)}
+  .sidebar{position:fixed;top:var(--header);left:0;width:var(--sidebar);height:calc(100vh - var(--header));background:var(--surface);border-right:1px solid var(--border);padding:16px 12px;overflow-y:auto}
+  .nav-label{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--faint);padding:8px 10px 4px}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;color:var(--muted);font-size:13px;font-weight:500;transition:all .15s;margin-bottom:1px}
+  .nav-item:hover{background:var(--card);color:var(--text)}
+  .nav-item.active{background:var(--purple-dim);color:var(--purple-light)}
+  .nav-item .nav-icon{font-size:16px;width:20px;text-align:center}
+  .nav-badge{margin-left:auto;background:var(--purple);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;min-width:20px;text-align:center}
+
+  .main{margin-left:var(--sidebar);padding:24px;flex:1;min-width:0}
+  .page{display:none}
+  .page.active{display:block}
+
+  /* PAGE HEADER */
+  .page-title{font-size:22px;font-weight:700;letter-spacing:-0.3px;margin-bottom:4px}
+  .page-sub{color:var(--muted);font-size:13px;margin-bottom:24px}
+
+  /* STAT CARDS */
+  .stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:24px}
+  .stat-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px}
+  .stat-label{font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+  .stat-value{font-size:28px;font-weight:800;letter-spacing:-1px;line-height:1}
+  .stat-sub{font-size:11px;color:var(--muted);margin-top:4px}
+  .stat-card.purple{border-color:var(--purple-dim);background:linear-gradient(135deg,var(--purple-dim),var(--card))}
+  .stat-card.green .stat-value{color:var(--green)}
+  .stat-card.blue .stat-value{color:var(--blue)}
+  .stat-card.yellow .stat-value{color:var(--yellow)}
+  .stat-card.red .stat-value{color:var(--red)}
+
+  /* CHARTS */
+  .charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+  .chart-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px}
+  .chart-title{font-size:13px;font-weight:600;margin-bottom:16px;color:var(--text)}
+  .chart-wrap{position:relative;height:180px}
+
+  /* TABLES */
+  .table-card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:24px}
+  .table-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+  .table-header-title{font-size:13px;font-weight:600}
+  .table-header-sub{font-size:12px;color:var(--muted)}
+  .table-header-spacer{flex:1}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;padding:10px 14px;font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:var(--faint);border-bottom:1px solid var(--border);background:var(--surface)}
+  td{padding:11px 14px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text);vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:rgba(255,255,255,0.02)}
+
+  /* BADGES */
+  .badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:0.3px}
+  .badge-athlete{background:#1a3a5c;color:#60a5fa}
+  .badge-coach{background:#1a3318;color:#4ade80}
+  .badge-brand{background:#3a1a3a;color:#c084fc}
+  .badge-fan{background:#2a2a1a;color:#fbbf24}
+  .badge-post{background:#1f1f2e;color:var(--muted)}
+  .badge-highlight{background:var(--purple-dim);color:var(--purple-light)}
+  .badge-story{background:#1a2a3a;color:#38bdf8}
+  .badge-reel{background:#2a1a1a;color:#f87171}
+  .badge-like{background:#3a1a1a;color:#f87171}
+  .badge-follow{background:#1a3318;color:#4ade80}
+  .badge-comment{background:#1a2a3a;color:#60a5fa}
+  .badge-share{background:#2a1a3a;color:#c084fc}
+  .badge-mention{background:#3a2a1a;color:#fbbf24}
+
+  /* SEARCH & FILTERS */
+  .filter-bar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+  .search-input{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:9px 14px;color:var(--text);font-size:13px;outline:none;width:260px;transition:border .15s}
+  .search-input:focus{border-color:var(--purple)}
+  .search-input::placeholder{color:var(--faint)}
+  .filter-btn{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:7px 12px;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s}
+  .filter-btn:hover,.filter-btn.active{background:var(--purple-dim);border-color:var(--purple);color:var(--purple-light)}
+
+  /* PAGINATION */
+  .pagination{display:flex;align-items:center;gap:8px;padding:12px 16px;border-top:1px solid var(--border)}
+  .page-btn{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:6px 12px;color:var(--muted);font-size:12px;cursor:pointer;transition:all .15s}
+  .page-btn:hover{border-color:var(--purple);color:var(--purple-light)}
+  .page-btn:disabled{opacity:0.3;cursor:default}
+  .page-info{font-size:12px;color:var(--muted);flex:1;text-align:center}
+
+  /* DELETE BTN */
+  .btn-delete{background:transparent;border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:var(--muted);font-size:12px;cursor:pointer;transition:all .15s}
+  .btn-delete:hover{border-color:var(--red);color:var(--red);background:rgba(239,68,68,.08)}
+
+  /* ACTIVITY FEED */
+  .activity-feed{display:flex;flex-direction:column;gap:1px}
+  .activity-item{background:var(--card);padding:12px 16px;display:flex;align-items:flex-start;gap:12px;border-bottom:1px solid var(--border)}
+  .activity-item:last-child{border-bottom:none}
+  .activity-icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+  .ai-like{background:#3a1a1a}
+  .ai-comment{background:#1a2a3a}
+  .ai-follow{background:#1a3318}
+  .ai-post{background:var(--purple-dim)}
+  .ai-signup{background:#2a2a1a}
+  .ai-message{background:#1a3a5c}
+  .activity-body{flex:1;min-width:0}
+  .activity-text{font-size:13px;color:var(--text);line-height:1.4}
+  .activity-text strong{color:#fff}
+  .activity-time{font-size:11px;color:var(--faint);margin-top:3px}
+
+  /* EMPTY STATE */
+  .empty{padding:48px;text-align:center;color:var(--faint)}
+  .empty-icon{font-size:36px;margin-bottom:12px}
+  .empty-text{font-size:14px}
+
+  /* NOTIF TYPE CARDS */
+  .notif-type-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:24px}
+
+  /* LOADING */
+  .loading{padding:48px;text-align:center;color:var(--muted)}
+  .spinner{width:24px;height:24px;border:2px solid var(--border);border-top-color:var(--purple);border-radius:50%;animation:spin .6s linear infinite;margin:0 auto 12px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* AVATAR */
+  .avatar{width:30px;height:30px;border-radius:50%;background:var(--purple-dim);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--purple-light);flex-shrink:0;overflow:hidden;vertical-align:middle;margin-right:8px}
+  .avatar img{width:100%;height:100%;object-fit:cover}
+
+  /* TRUNCATE */
+  .trunc{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px}
+
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:900px){.two-col,.charts-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">SPOTR<span> Admin</span></div>
+    <div class="login-sub">Enter your admin secret to continue</div>
+    <input type="password" id="secret-input" placeholder="Admin secret" autocomplete="current-password"/>
+    <button onclick="doLogin()">Sign In</button>
+    <div class="login-error" id="login-error">Invalid secret. Check your ADMIN_SECRET env var.</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header class="header">
+    <div class="header-logo">SPOTR<span> Admin</span></div>
+    <div class="header-badge">LIVE</div>
+    <div class="header-spacer"></div>
+    <div class="header-env" id="header-env"></div>
+    <button class="btn-logout" onclick="logout()">Sign Out</button>
+  </header>
+
+  <div class="layout">
+    <nav class="sidebar">
+      <div class="nav-label">Dashboard</div>
+      <div class="nav-item active" onclick="showPage('overview')" id="nav-overview">
+        <span class="nav-icon">📊</span> Overview
+      </div>
+      <div class="nav-label">Content</div>
+      <div class="nav-item" onclick="showPage('users')" id="nav-users">
+        <span class="nav-icon">👥</span> Users
+        <span class="nav-badge" id="badge-users">–</span>
+      </div>
+      <div class="nav-item" onclick="showPage('posts')" id="nav-posts">
+        <span class="nav-icon">🎬</span> Posts
+        <span class="nav-badge" id="badge-posts">–</span>
+      </div>
+      <div class="nav-label">Engagement</div>
+      <div class="nav-item" onclick="showPage('notifications')" id="nav-notifications">
+        <span class="nav-icon">🔔</span> Notifications
+        <span class="nav-badge" id="badge-notifs">–</span>
+      </div>
+      <div class="nav-item" onclick="showPage('activity')" id="nav-activity">
+        <span class="nav-icon">⚡</span> Activity
+      </div>
+    </nav>
+
+    <main class="main">
+      <!-- OVERVIEW -->
+      <div class="page active" id="page-overview">
+        <div class="page-title">Overview</div>
+        <div class="page-sub">Platform health at a glance</div>
+        <div id="overview-content"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+      </div>
+
+      <!-- USERS -->
+      <div class="page" id="page-users">
+        <div class="page-title">Users</div>
+        <div class="page-sub">All registered accounts</div>
+        <div class="filter-bar">
+          <input class="search-input" id="user-search" placeholder="Search name or email…" oninput="debouncedUserSearch()"/>
+          <button class="filter-btn active" onclick="setUserRole('ALL',this)">All</button>
+          <button class="filter-btn" onclick="setUserRole('ATHLETE',this)">Athletes</button>
+          <button class="filter-btn" onclick="setUserRole('COACH',this)">Coaches</button>
+          <button class="filter-btn" onclick="setUserRole('BRAND',this)">Brands</button>
+        </div>
+        <div class="table-card">
+          <div id="users-content"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+        </div>
+      </div>
+
+      <!-- POSTS -->
+      <div class="page" id="page-posts">
+        <div class="page-title">Posts</div>
+        <div class="page-sub">All content in the app</div>
+        <div class="filter-bar">
+          <button class="filter-btn active" onclick="setPostType('',this)">All</button>
+          <button class="filter-btn" onclick="setPostType('regular',this)">Posts</button>
+          <button class="filter-btn" onclick="setPostType('highlight',this)">Highlights</button>
+          <button class="filter-btn" onclick="setPostType('story',this)">Stories</button>
+          <button class="filter-btn" onclick="setPostType('reel',this)">Reels</button>
+        </div>
+        <div class="table-card">
+          <div id="posts-content"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+        </div>
+      </div>
+
+      <!-- NOTIFICATIONS -->
+      <div class="page" id="page-notifications">
+        <div class="page-title">Notifications & Push</div>
+        <div class="page-sub">In-app notifications and APNs device tokens</div>
+        <div id="notifications-content"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+      </div>
+
+      <!-- ACTIVITY -->
+      <div class="page" id="page-activity">
+        <div class="page-title">Activity Feed</div>
+        <div class="page-sub">Real-time events across the platform</div>
+        <div id="activity-content"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+let SECRET = '';
+let userPage = 1, userRole = 'ALL', userSearch = '';
+let postPage = 1, postType = '';
+let chartSignups, chartPosts;
+let searchTimer;
+
+function name(u) {
+  return u?.athleteProfile?.name || u?.coachProfile?.name || u?.brandProfile?.name || u?.email?.split('@')[0] || '—';
+}
+function roleBadge(role) {
+  const map = {ATHLETE:'athlete',COACH:'coach',BRAND:'brand',FAN:'fan'};
+  const labels = {ATHLETE:'Athlete',COACH:'Coach',BRAND:'Brand',FAN:'Fan'};
+  return `<span class="badge badge-${(map[role]||'fan')}">${labels[role]||role}</span>`;
+}
+function typeBadge(p) {
+  if (p.isHighlight) return '<span class="badge badge-highlight">Highlight</span>';
+  if (p.isStory) return '<span class="badge badge-story">Story</span>';
+  if (p.isReel) return '<span class="badge badge-reel">Reel</span>';
+  return '<span class="badge badge-post">Post</span>';
+}
+function timeAgo(d) {
+  const s = Math.floor((Date.now()-new Date(d))/1000);
+  if (s<60) return s+'s ago';
+  if (s<3600) return Math.floor(s/60)+'m ago';
+  if (s<86400) return Math.floor(s/3600)+'h ago';
+  return Math.floor(s/86400)+'d ago';
+}
+function fmt(n) { return (n||0).toLocaleString(); }
+function avatarEl(u) {
+  const initials = name(u).charAt(0).toUpperCase();
+  if (u?.avatarUrl) return `<span class="avatar"><img src="${u.avatarUrl}" onerror="this.style.display='none'"/>${initials}</span>`;
+  return `<span class="avatar">${initials}</span>`;
+}
+
+async function api(path) {
+  const r = await fetch('/api/admin'+path, { headers: { Authorization: 'Bearer '+SECRET } });
+  if (r.status===401) { logout(); throw new Error('unauth'); }
+  return r.json();
+}
+
+async function doLogin() {
+  const val = document.getElementById('secret-input').value.trim();
+  if (!val) return;
+  SECRET = val;
+  try {
+    await api('/overview');
+    sessionStorage.setItem('spotr_admin', val);
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    loadOverview();
+  } catch {
+    document.getElementById('login-error').style.display = 'block';
+    SECRET = '';
+  }
+}
+document.getElementById('secret-input').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+
+function logout() {
+  sessionStorage.removeItem('spotr_admin');
+  SECRET = '';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-error').style.display = 'none';
+}
+
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.getElementById('nav-'+id).classList.add('active');
+  if (id==='users') loadUsers();
+  if (id==='posts') loadPosts();
+  if (id==='notifications') loadNotifications();
+  if (id==='activity') loadActivity();
+}
+
+// ─── OVERVIEW ───────────────────────────────────────────────────────────────
+async function loadOverview() {
+  const data = await api('/overview');
+  const s = data.stats;
+
+  document.getElementById('badge-users').textContent = fmt(s.totalUsers);
+  document.getElementById('badge-posts').textContent = fmt(s.totalPosts);
+  document.getElementById('badge-notifs').textContent = fmt(s.unreadNotifications);
+  document.getElementById('header-env').textContent = new Date().toLocaleString();
+
+  document.getElementById('overview-content').innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card purple">
+        <div class="stat-label">Total Users</div>
+        <div class="stat-value">${fmt(s.totalUsers)}</div>
+        <div class="stat-sub">${fmt(s.athletes)} athletes · ${fmt(s.coaches)} coaches · ${fmt(s.brands)} brands</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Athletes</div>
+        <div class="stat-value">${fmt(s.athletes)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Coaches</div>
+        <div class="stat-value">${fmt(s.coaches)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Brands</div>
+        <div class="stat-value">${fmt(s.brands)}</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-label">Total Posts</div>
+        <div class="stat-value">${fmt(s.totalPosts)}</div>
+        <div class="stat-sub">${fmt(s.highlights)} highlights · ${fmt(s.stories)} stories</div>
+      </div>
+      <div class="stat-card blue">
+        <div class="stat-label">Total Likes</div>
+        <div class="stat-value">${fmt(s.totalLikes)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Comments</div>
+        <div class="stat-value">${fmt(s.totalComments)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Follows</div>
+        <div class="stat-value">${fmt(s.totalFollows)}</div>
+      </div>
+      <div class="stat-card yellow">
+        <div class="stat-label">Notifications</div>
+        <div class="stat-value">${fmt(s.totalNotifications)}</div>
+        <div class="stat-sub">${fmt(s.unreadNotifications)} unread</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Device Tokens</div>
+        <div class="stat-value">${fmt(s.deviceTokens)}</div>
+        <div class="stat-sub">Push registered</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Messages</div>
+        <div class="stat-value">${fmt(s.totalMessages)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Connections</div>
+        <div class="stat-value">${fmt(s.totalConnections)}</div>
+      </div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">User Signups — Last 30 Days</div>
+        <div class="chart-wrap"><canvas id="chart-signups"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Posts Created — Last 30 Days</div>
+        <div class="chart-wrap"><canvas id="chart-posts"></canvas></div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="table-card">
+        <div class="table-header">
+          <span class="table-header-title">Recent Signups</span>
+          <span class="table-header-sub">Last 10 accounts</span>
+        </div>
+        <table>
+          <thead><tr><th>User</th><th>Role</th><th>Posts</th><th>Joined</th></tr></thead>
+          <tbody>
+            ${data.recentUsers.map(u=>`
+              <tr>
+                <td>${avatarEl(u)}<span class="trunc">${name(u)}</span></td>
+                <td>${roleBadge(u.role)}</td>
+                <td>${fmt(u._count.posts)}</td>
+                <td>${timeAgo(u.createdAt)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-card">
+        <div class="table-header">
+          <span class="table-header-title">Top Posters</span>
+          <span class="table-header-sub">By post count</span>
+        </div>
+        <table>
+          <thead><tr><th>User</th><th>Role</th><th>Posts</th><th>Followers</th></tr></thead>
+          <tbody>
+            ${data.topPosters.map(u=>`
+              <tr>
+                <td>${avatarEl(u)}<span class="trunc">${name(u)}</span></td>
+                <td>${roleBadge(u.role)}</td>
+                <td>${fmt(u._count.posts)}</td>
+                <td>${fmt(u._count.followers)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  renderChart('chart-signups', data.usersByDay, '#7C3AED', 'Users');
+  renderChart('chart-posts', data.postsByDay, '#22c55e', 'Posts');
+}
+
+function renderChart(id, rawData, color, label) {
+  const labels = [], values = [];
+  const now = new Date();
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now); d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    labels.push(key.slice(5));
+    const match = rawData.find(r => new Date(r.date).toISOString().slice(0,10) === key);
+    values.push(match ? match.count : 0);
+  }
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ label, data: values, backgroundColor: color+'33', borderColor: color, borderWidth: 1.5, borderRadius: 4 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#1f1f2e' }, ticks: { color: '#888899', maxTicksLimit: 8, font: { size: 10 } } },
+        y: { grid: { color: '#1f1f2e' }, ticks: { color: '#888899', precision: 0, font: { size: 10 } } }
+      }
+    }
+  });
+}
+
+// ─── USERS ───────────────────────────────────────────────────────────────────
+function setUserRole(role, el) {
+  userRole = role; userPage = 1;
+  document.querySelectorAll('[onclick^="setUserRole"]').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  loadUsers();
+}
+function debouncedUserSearch() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => { userPage = 1; loadUsers(); }, 400);
+}
+
+async function loadUsers() {
+  userSearch = document.getElementById('user-search')?.value?.trim() || '';
+  const data = await api(`/users?page=${userPage}&role=${userRole}&search=${encodeURIComponent(userSearch)}`);
+  document.getElementById('users-content').innerHTML = `
+    <table>
+      <thead><tr><th>User</th><th>Role</th><th>Sport / Org</th><th>Posts</th><th>Followers</th><th>Joined</th><th></th></tr></thead>
+      <tbody>
+        ${data.users.length ? data.users.map(u => `
+          <tr>
+            <td>
+              ${avatarEl(u)}
+              <div style="display:inline-block;vertical-align:middle">
+                <div style="font-weight:600">${name(u)}</div>
+                <div style="font-size:11px;color:var(--muted)">${u.email}</div>
+              </div>
+            </td>
+            <td>${roleBadge(u.role)}</td>
+            <td class="trunc" style="max-width:160px;color:var(--muted)">
+              ${u.athleteProfile?.sport || u.coachProfile?.organization || '—'}
+            </td>
+            <td>${fmt(u._count.posts)}</td>
+            <td>${fmt(u._count.followers)}</td>
+            <td style="color:var(--muted)">${timeAgo(u.createdAt)}</td>
+            <td><button class="btn-delete" onclick="deleteUser('${u.id}','${name(u).replace(/'/g,"\\'")}')">Delete</button></td>
+          </tr>`).join('') : '<tr><td colspan="7"><div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">No users found</div></div></td></tr>'}
+      </tbody>
+    </table>
+    <div class="pagination">
+      <button class="page-btn" onclick="userPage--;loadUsers()" ${userPage<=1?'disabled':''}>← Prev</button>
+      <div class="page-info">Page ${data.page} of ${data.pages} · ${fmt(data.total)} total</div>
+      <button class="page-btn" onclick="userPage++;loadUsers()" ${userPage>=data.pages?'disabled':''}>Next →</button>
+    </div>
+  `;
+}
+
+async function deleteUser(id, username) {
+  if (!confirm(`Delete user "${username}"? This is permanent and will cascade to all their content.`)) return;
+  await api('/users/'+id);
+  await fetch('/api/admin/users/'+id, { method:'DELETE', headers:{ Authorization:'Bearer '+SECRET } });
+  loadUsers();
+}
+
+// ─── POSTS ───────────────────────────────────────────────────────────────────
+function setPostType(type, el) {
+  postType = type; postPage = 1;
+  document.querySelectorAll('[onclick^="setPostType"]').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  loadPosts();
+}
+
+async function loadPosts() {
+  const data = await api(`/posts?page=${postPage}&type=${postType}`);
+  document.getElementById('posts-content').innerHTML = `
+    <table>
+      <thead><tr><th>Author</th><th>Text</th><th>Type</th><th>Likes</th><th>Comments</th><th>Created</th><th></th></tr></thead>
+      <tbody>
+        ${data.posts.length ? data.posts.map(p => `
+          <tr>
+            <td>
+              ${avatarEl(p.author)}
+              <span style="font-size:12px">${name(p.author)}</span>
+            </td>
+            <td><span class="trunc" style="color:var(--muted);font-size:12px">${p.text?.substring(0,80)||'—'}</span></td>
+            <td>${typeBadge(p)}</td>
+            <td>❤️ ${fmt(p._count.likes)}</td>
+            <td>💬 ${fmt(p._count.comments)}</td>
+            <td style="color:var(--muted)">${timeAgo(p.createdAt)}</td>
+            <td><button class="btn-delete" onclick="deletePost('${p.id}')">Delete</button></td>
+          </tr>`).join('') : '<tr><td colspan="7"><div class="empty"><div class="empty-icon">📭</div><div class="empty-text">No posts found</div></div></td></tr>'}
+      </tbody>
+    </table>
+    <div class="pagination">
+      <button class="page-btn" onclick="postPage--;loadPosts()" ${postPage<=1?'disabled':''}>← Prev</button>
+      <div class="page-info">Page ${data.page} of ${data.pages} · ${fmt(data.total)} total</div>
+      <button class="page-btn" onclick="postPage++;loadPosts()" ${postPage>=data.pages?'disabled':''}>Next →</button>
+    </div>
+  `;
+}
+
+async function deletePost(id) {
+  if (!confirm('Delete this post? This is permanent.')) return;
+  await fetch('/api/admin/posts/'+id, { method:'DELETE', headers:{ Authorization:'Bearer '+SECRET } });
+  loadPosts();
+}
+
+// ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
+async function loadNotifications() {
+  const data = await api('/notifications');
+  const typeIcons = { like:'❤️', follow:'👤', comment:'💬', share:'📤', mention:'@' };
+  const readCount = data.readVsUnread.find(r=>r.read)._count?.id || 0;
+  const unreadCount = data.readVsUnread.find(r=>!r.read)?._count?.id || 0;
+
+  document.getElementById('notifications-content').innerHTML = `
+    <div class="notif-type-grid">
+      ${data.byType.map(t=>`
+        <div class="stat-card">
+          <div class="stat-label">${(typeIcons[t.type]||'🔔')} ${t.type}</div>
+          <div class="stat-value">${fmt(t._count.id)}</div>
+        </div>`).join('')}
+      <div class="stat-card green">
+        <div class="stat-label">✅ Read</div>
+        <div class="stat-value">${fmt(readCount)}</div>
+      </div>
+      <div class="stat-card yellow">
+        <div class="stat-label">🔴 Unread</div>
+        <div class="stat-value">${fmt(unreadCount)}</div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="table-card">
+        <div class="table-header">
+          <span class="table-header-title">Recent Notifications</span>
+          <span class="table-header-sub">Latest 50</span>
+        </div>
+        <table>
+          <thead><tr><th>Type</th><th>From</th><th>To</th><th>When</th></tr></thead>
+          <tbody>
+            ${data.recent.map(n=>`
+              <tr>
+                <td><span class="badge badge-${n.type}">${typeIcons[n.type]||'🔔'} ${n.type}</span></td>
+                <td class="trunc">${name(n.actor)}</td>
+                <td class="trunc">${name(n.user)}</td>
+                <td style="color:var(--muted)">${timeAgo(n.createdAt)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-card">
+        <div class="table-header">
+          <span class="table-header-title">Push Device Tokens</span>
+          <span class="table-header-sub">${fmt(data.deviceTokens.length)} registered</span>
+        </div>
+        ${data.deviceTokens.length ? `
+        <table>
+          <thead><tr><th>User</th><th>Role</th><th>Token</th><th>Registered</th></tr></thead>
+          <tbody>
+            ${data.deviceTokens.map(t=>`
+              <tr>
+                <td class="trunc">${name(t.user)}</td>
+                <td>${roleBadge(t.user.role)}</td>
+                <td style="color:var(--faint);font-size:11px;font-family:monospace">${t.token.substring(0,16)}…</td>
+                <td style="color:var(--muted)">${timeAgo(t.createdAt)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>` : '<div class="empty"><div class="empty-icon">📵</div><div class="empty-text">No device tokens yet</div></div>'}
+      </div>
+    </div>
+  `;
+}
+
+// ─── ACTIVITY ─────────────────────────────────────────────────────────────────
+async function loadActivity() {
+  const data = await api('/activity');
+
+  const events = [
+    ...data.recentSignups.map(u=>({t:u.createdAt,type:'signup',u,text:`<strong>${name(u)}</strong> signed up as ${u.role.toLowerCase()}`})),
+    ...data.recentPosts.map(p=>({t:p.createdAt,type:'post',u:p.author,text:`<strong>${name(p.author)}</strong> posted ${p.isHighlight?'a highlight':p.isStory?'a story':'a post'}: <em>${p.text?.substring(0,60)||'(no caption)'}</em>`})),
+    ...data.recentLikes.map(l=>({t:l.createdAt,type:'like',u:l.user,text:`<strong>${name(l.user)}</strong> liked a post by <strong>${name(l.post?.author)}</strong>`})),
+    ...data.recentComments.map(c=>({t:c.createdAt,type:'comment',u:c.user,text:`<strong>${name(c.user)}</strong> commented: <em>${c.text?.substring(0,60)}</em>`})),
+    ...data.recentFollows.map(f=>({t:f.createdAt,type:'follow',u:f.follower,text:`<strong>${name(f.follower)}</strong> followed <strong>${name(f.following)}</strong>`})),
+    ...data.recentMessages.map(m=>({t:m.createdAt,type:'message',u:m.sender,text:`<strong>${name(m.sender)}</strong> messaged <strong>${name(m.receiver)}</strong>`})),
+  ].sort((a,b)=>new Date(b.t)-new Date(a.t)).slice(0,60);
+
+  const iconMap = { signup:'🆕', post:'📸', like:'❤️', comment:'💬', follow:'👤', message:'✉️' };
+  const bgMap = { signup:'ai-signup', post:'ai-post', like:'ai-like', comment:'ai-comment', follow:'ai-follow', message:'ai-message' };
+
+  document.getElementById('activity-content').innerHTML = events.length ? `
+    <div class="table-card">
+      <div class="activity-feed">
+        ${events.map(e=>`
+          <div class="activity-item">
+            <div class="activity-icon ${bgMap[e.type]||''}">${iconMap[e.type]||'•'}</div>
+            <div class="activity-body">
+              <div class="activity-text">${e.text}</div>
+              <div class="activity-time">${timeAgo(e.t)}</div>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>` : '<div class="empty"><div class="empty-icon">💤</div><div class="empty-text">No activity yet</div></div>';
+}
+
+// ─── INIT ──────────────────────────────────────────────────────────────────────
+const stored = sessionStorage.getItem('spotr_admin');
+if (stored) {
+  SECRET = stored;
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  loadOverview();
+}
+</script>
+</body>
+</html>

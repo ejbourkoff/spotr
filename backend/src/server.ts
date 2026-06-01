@@ -19,6 +19,7 @@ import uploadRoutes from './routes/uploads';
 import muxRoutes from './routes/mux';
 import notificationRoutes from './routes/notifications';
 import connectionRoutes from './routes/connections';
+import adminRoutes from './routes/admin';
 
 dotenv.config();
 
@@ -66,6 +67,9 @@ app.use('/api/mux', muxRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/connections', connectionRoutes);
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+app.use('/api/admin', adminRoutes);
+app.use('/admin', express.static(path.join(process.cwd(), 'public/admin')));
+app.get('/admin', (_req, res) => res.sendFile(path.join(process.cwd(), 'public/admin/index.html')));
 
 app.listen(PORT, () => {
   console.log(`🚀 SPOTR API server running on http://localhost:${PORT}`);
