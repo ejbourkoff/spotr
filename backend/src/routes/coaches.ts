@@ -103,7 +103,6 @@ const athleteSelect = {
   location: true,
   height: true,
   weight: true,
-  avatarUrl: false, // on user, not athleteProfile
   user: { select: { id: true, avatarUrl: true } },
 };
 
