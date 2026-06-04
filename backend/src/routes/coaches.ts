@@ -183,6 +183,36 @@ router.post('/lists', authenticate, requireRole('COACH'), async (req: AuthReques
   }
 });
 
+// GET /api/coaches/watchlist — flat list of all athletes across all boards
+router.get('/watchlist', authenticate, requireRole('COACH'), async (req: AuthRequest, res: Response) => {
+  try {
+    const coach = await prisma.coachProfile.findUnique({ where: { userId: req.userId! } });
+    if (!coach) return res.status(404).json({ error: 'Coach profile not found' });
+
+    const entries = await prisma.savedListEntry.findMany({
+      where: { list: { coachId: coach.id } },
+      include: {
+        athlete: { select: athleteSelect },
+        list: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Deduplicate by athleteId — same athlete can be in multiple boards
+    const seen = new Set<string>();
+    const unique = entries.filter(e => {
+      if (seen.has(e.athleteId)) return false;
+      seen.add(e.athleteId);
+      return true;
+    });
+
+    res.json({ athletes: unique, count: unique.length });
+  } catch (error) {
+    console.error('Get watchlist error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Add athlete to list
 router.post('/lists/:listId/athletes', authenticate, requireRole('COACH'), async (req: AuthRequest, res: Response) => {
   try {

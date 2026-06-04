@@ -107,9 +107,28 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'receiverId and body are required' })
     }
 
-    const receiver = await prisma.user.findUnique({ where: { id: receiverId } })
+    const [sender, receiver] = await Promise.all([
+      prisma.user.findUnique({ where: { id: senderId }, select: { role: true } }),
+      prisma.user.findUnique({ where: { id: receiverId }, select: { id: true, role: true } }),
+    ])
     if (!receiver) return res.status(404).json({ error: 'User not found' })
     if (receiver.id === senderId) return res.status(400).json({ error: 'Cannot message yourself' })
+
+    // Athletes must be connected to a coach before they can initiate a message
+    if (sender?.role === 'ATHLETE' && receiver.role === 'COACH') {
+      const connection = await prisma.connection.findFirst({
+        where: {
+          status: 'ACCEPTED',
+          OR: [
+            { requesterId: senderId, addresseeId: receiverId },
+            { requesterId: receiverId, addresseeId: senderId },
+          ],
+        },
+      })
+      if (!connection) {
+        return res.status(403).json({ error: 'Connect with this coach first before messaging', requiresConnection: true })
+      }
+    }
 
     const message = await prisma.message.create({
       data: { senderId, receiverId: receiver.id, body, type: 'text', subject: '' },
