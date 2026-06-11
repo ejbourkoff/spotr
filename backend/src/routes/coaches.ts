@@ -93,19 +93,6 @@ router.get('/search/athletes', authenticate, requireRole('COACH'), async (req: A
   }
 });
 
-const athleteSelect = {
-  id: true,
-  name: true,
-  sport: true,
-  position: true,
-  schoolTeam: true,
-  classYear: true,
-  location: true,
-  height: true,
-  weight: true,
-  user: { select: { id: true, avatarUrl: true } },
-};
-
 // Get coach's saved lists (recruiting boards)
 router.get('/lists', authenticate, requireRole('COACH'), async (req: AuthRequest, res: Response) => {
   try {
@@ -115,19 +102,46 @@ router.get('/lists', authenticate, requireRole('COACH'), async (req: AuthRequest
 
     const lists = await prisma.savedList.findMany({
       where: { coachId: coach.id },
+      orderBy: { createdAt: 'desc' },
       include: {
         entries: {
-          include: { athlete: { select: athleteSelect } },
           orderBy: { createdAt: 'desc' },
+          include: {
+            athlete: {
+              include: {
+                user: { select: { id: true, avatarUrl: true } },
+              },
+            },
+          },
         },
       },
-      orderBy: { createdAt: 'desc' },
     });
 
-    res.json({ lists });
-  } catch (error) {
+    // Shape into the format iOS expects
+    const shaped = lists.map(list => ({
+      id: list.id,
+      name: list.name,
+      entries: list.entries.map(entry => ({
+        id: entry.id,
+        athlete: {
+          id: entry.athlete.id,
+          name: entry.athlete.name,
+          sport: entry.athlete.sport,
+          position: entry.athlete.position,
+          schoolTeam: entry.athlete.schoolTeam,
+          classYear: entry.athlete.classYear,
+          location: entry.athlete.location,
+          height: entry.athlete.height,
+          weight: entry.athlete.weight,
+          user: { id: entry.athlete.user.id, avatarUrl: entry.athlete.user.avatarUrl },
+        },
+      })),
+    }));
+
+    res.json({ lists: shaped });
+  } catch (error: any) {
     console.error('Get lists error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: error?.message || 'Internal server error' });
   }
 });
 
@@ -190,25 +204,47 @@ router.get('/watchlist', authenticate, requireRole('COACH'), async (req: AuthReq
 
     const entries = await prisma.savedListEntry.findMany({
       where: { list: { coachId: coach.id } },
+      orderBy: { createdAt: 'desc' },
       include: {
-        athlete: { select: athleteSelect },
+        athlete: {
+          include: {
+            user: { select: { id: true, avatarUrl: true } },
+          },
+        },
         list: { select: { id: true, name: true } },
       },
-      orderBy: { createdAt: 'desc' },
     });
 
     // Deduplicate by athleteId — same athlete can be in multiple boards
     const seen = new Set<string>();
-    const unique = entries.filter(e => {
-      if (seen.has(e.athleteId)) return false;
-      seen.add(e.athleteId);
-      return true;
-    });
+    const unique = entries
+      .filter(e => {
+        if (seen.has(e.athleteId)) return false;
+        seen.add(e.athleteId);
+        return true;
+      })
+      .map(e => ({
+        id: e.id,
+        athleteId: e.athleteId,
+        athlete: {
+          id: e.athlete.id,
+          name: e.athlete.name,
+          sport: e.athlete.sport,
+          position: e.athlete.position,
+          schoolTeam: e.athlete.schoolTeam,
+          classYear: e.athlete.classYear,
+          location: e.athlete.location,
+          height: e.athlete.height,
+          weight: e.athlete.weight,
+          user: { id: e.athlete.user.id, avatarUrl: e.athlete.user.avatarUrl },
+        },
+        list: e.list,
+      }));
 
     res.json({ athletes: unique, count: unique.length });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Get watchlist error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: error?.message || 'Internal server error' });
   }
 });
 
