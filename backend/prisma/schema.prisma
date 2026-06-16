@@ -555,3 +555,29 @@ model AnalyticsEvent {
   @@index([createdAt])
   @@map("analytics_events")
 }
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([email])
+  @@map("password_reset_tokens")
+}
+
+model WaitlistEntry {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  school    String
+  sport     String
+  classYear String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("waitlist_entries")
+}

@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcrypt';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -372,6 +373,77 @@ router.get('/analytics', adminAuth, async (_req, res) => {
       recentSessions,
       newVsReturning: newVsReturning.map(r => ({ type: r.type, count: Number(r.count) })),
     });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal error' });
+  }
+});
+
+// Admin: reset a user's password by email
+router.post('/reset-password', adminAuth, async (req: Request, res: Response) => {
+  try {
+    const { email, newPassword } = req.body;
+    if (!email || !newPassword) { res.status(400).json({ error: 'email and newPassword required' }); return; }
+    const hashed = await bcrypt.hash(newPassword, 10);
+    const user = await prisma.user.updateMany({ where: { email: email.toLowerCase().trim() }, data: { password: hashed } });
+    if (user.count === 0) { res.status(404).json({ error: 'User not found' }); return; }
+    res.json({ ok: true, message: `Password reset for ${email}` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal error' });
+  }
+});
+
+// Waitlist entries
+router.get('/waitlist', adminAuth, async (_req, res) => {
+  try {
+    const entries = await prisma.waitlistEntry.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const rows = entries
+      .map(
+        (e) => `
+      <tr>
+        <td>${e.createdAt.toLocaleDateString()}</td>
+        <td>${e.name}</td>
+        <td><a href="mailto:${e.email}">${e.email}</a></td>
+        <td>${e.school}</td>
+        <td>${e.sport}</td>
+        <td>${e.classYear ?? '—'}</td>
+      </tr>`
+      )
+      .join('');
+
+    res.send(`<!DOCTYPE html>
+<html>
+<head>
+  <title>SPOTR Waitlist</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; background: #0a0a0a; color: #fff; }
+    h1 { color: #7c3aed; font-size: 1.5rem; margin-bottom: 0.25rem; }
+    p { color: #9ca3af; margin-bottom: 1.5rem; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; padding: 0.5rem 1rem; background: #1a1a1a; color: #9ca3af; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    td { padding: 0.75rem 1rem; border-bottom: 1px solid #222; font-size: 0.875rem; }
+    a { color: #7c3aed; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    tr:hover td { background: #111; }
+  </style>
+</head>
+<body>
+  <h1>SPOTR Waitlist</h1>
+  <p>${entries.length} signup${entries.length === 1 ? '' : 's'}</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th><th>Name</th><th>Email</th><th>School</th><th>Sport</th><th>Class</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+</body>
+</html>`);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal error' });

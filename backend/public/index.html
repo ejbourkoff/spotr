@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SPOTR — The Athlete Network</title>
+
+  <meta name="description" content="The social network where underserved athletes get discovered. Early access for athletes and D2/D3 coaches." />
+
+  <meta property="og:title" content="SPOTR — The Athlete Network" />
+  <meta property="og:description" content="The social network where underserved athletes get discovered. Early access for athletes and D2/D3 coaches." />
+  <meta property="og:image" content="https://thespotrapp.com/assets/og-image.png" />
+  <meta property="og:url" content="https://thespotrapp.com" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="SPOTR — The Athlete Network" />
+  <meta name="twitter:description" content="The social network where underserved athletes get discovered." />
+  <meta name="twitter:image" content="https://thespotrapp.com/assets/og-image.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav class="nav">
+    <div class="wordmark"><span class="s">S</span>POTR</div>
+    <a href="mailto:evan@thespotrapp.com" class="nav-contact">evan@thespotrapp.com</a>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="glow"></div>
+    <div class="hero-inner">
+      <div class="eyebrow">— THE ATHLETE NETWORK —</div>
+      <h1 class="hero-headline">
+        <span class="purple">YOUR HIGHLIGHT<br>REEL</span><br>STARTS HERE.
+      </h1>
+      <p class="hero-sub">
+        A social network built for athletes the current recruiting system leaves behind — and the coaches recruiting without a D1 budget.
+      </p>
+      <a href="#waitlist" class="btn-primary">⚡ REQUEST EARLY ACCESS</a>
+    </div>
+    <div class="scroll-hint">
+      <span>↓</span>
+    </div>
+  </section>
+
+  <!-- WHAT IS SPOTR -->
+  <section class="what">
+    <div class="container">
+      <div class="section-label">— WHAT IS SPOTR —</div>
+      <h2 class="section-title">BUILT FOR BOTH SIDES<br>OF THE RECRUITING GAP.</h2>
+      <div class="cards">
+
+        <div class="card">
+          <div class="card-tag athletes">FOR ATHLETES</div>
+          <h3>Your game deserves<br>an audience.</h3>
+          <p>
+            Post your film. Build a recruiting profile. Get discovered by coaches who are actively searching for players like you — no agent, no recruiting service, no middleman.
+          </p>
+          <ul>
+            <li>Highlight reels &amp; game film</li>
+            <li>Season stats &amp; measurables</li>
+            <li>A profile coaches can actually find</li>
+          </ul>
+        </div>
+
+        <div class="card card-accent">
+          <div class="card-tag coaches">FOR COACHES</div>
+          <h3>Your program deserves<br>a pipeline.</h3>
+          <p>
+            D2 and D3 coaches grind without the budgets or staff that D1 programs have. SPOTR gives you a direct line to athletes that otherwise wouldn't have a platform.
+          </p>
+          <ul>
+            <li>Browse a feed of athlete highlights</li>
+            <li>Search by sport, position, and grad year</li>
+            <li>Connect without a middleman</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- COMING SOON BAND -->
+  <section class="band">
+    <div class="band-inner">
+      <span>COMING SOON</span>
+      <span class="dot">·</span>
+      <span>COMING SOON</span>
+      <span class="dot">·</span>
+      <span>COMING SOON</span>
+      <span class="dot">·</span>
+      <span>COMING SOON</span>
+      <span class="dot">·</span>
+      <span>COMING SOON</span>
+      <span class="dot">·</span>
+      <span>COMING SOON</span>
+      <span class="dot">·</span>
+      <span>COMING SOON</span>
+      <span class="dot">·</span>
+      <span>COMING SOON</span>
+    </div>
+  </section>
+
+  <!-- WAITLIST -->
+  <section class="waitlist" id="waitlist">
+    <div class="container">
+      <div class="section-label">— EARLY ACCESS —</div>
+      <h2 class="section-title">WE'RE REACHING OUT TO<br>A SMALL GROUP FIRST.</h2>
+      <p class="waitlist-sub">
+        Athletes and D2/D3 coaches. Limited spots. Tell us about yourself and we'll be in touch.
+      </p>
+
+      <form class="form" id="waitlist-form">
+        <div class="form-row">
+          <div class="form-field">
+            <label for="name">FULL NAME</label>
+            <input type="text" id="name" name="name" placeholder="Your name" required autocomplete="name" />
+          </div>
+          <div class="form-field">
+            <label for="email">EMAIL</label>
+            <input type="email" id="email" name="email" placeholder="your@email.com" required autocomplete="email" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label for="school">SCHOOL / PROGRAM</label>
+            <input type="text" id="school" name="school" placeholder="School or university" required />
+          </div>
+          <div class="form-field">
+            <label for="sport">SPORT</label>
+            <input type="text" id="sport" name="sport" placeholder="Basketball, Football..." required />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label for="classYear">CLASS YEAR <span class="optional">(athletes)</span></label>
+            <input type="text" id="classYear" name="classYear" placeholder="2026, 2027..." />
+          </div>
+          <div class="form-field form-field-empty"></div>
+        </div>
+        <button type="submit" class="btn-submit" id="submit-btn">⚡ REQUEST EARLY ACCESS</button>
+      </form>
+
+      <div class="success" id="success" style="display:none">
+        <div class="success-check">✓</div>
+        <h3>YOU'RE ON THE LIST.</h3>
+        <p>We'll reach out soon. We're keeping early access tight so the community stays real.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="wordmark"><span class="s">S</span>POTR</div>
+    <p class="footer-tagline">THE ATHLETE NETWORK</p>
+    <a href="mailto:evan@thespotrapp.com" class="footer-email">evan@thespotrapp.com</a>
+    <p class="footer-copy">© 2026 SPOTR. All rights reserved.</p>
+  </footer>
+
+  <script>
+    const form = document.getElementById('waitlist-form');
+    const btn = document.getElementById('submit-btn');
+    const success = document.getElementById('success');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const originalText = btn.textContent;
+      btn.textContent = 'SENDING...';
+      btn.disabled = true;
+
+      const payload = {
+        name: document.getElementById('name').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        school: document.getElementById('school').value.trim(),
+        sport: document.getElementById('sport').value.trim(),
+        classYear: document.getElementById('classYear').value.trim() || undefined,
+      };
+
+      try {
+        const res = await fetch('https://spotr-production.up.railway.app/api/waitlist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (res.ok) {
+          form.style.display = 'none';
+          success.style.display = 'flex';
+        } else {
+          const json = await res.json().catch(() => ({}));
+          btn.textContent = json.error || 'Something went wrong. Try again.';
+          btn.disabled = false;
+        }
+      } catch {
+        btn.textContent = 'Check your connection and try again.';
+        btn.disabled = false;
+        setTimeout(() => {
+          btn.textContent = originalText;
+        }, 3000);
+      }
+    });
+  </script>
+
+</body>
+</html>

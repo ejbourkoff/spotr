@@ -21,6 +21,7 @@ import notificationRoutes from './routes/notifications';
 import connectionRoutes from './routes/connections';
 import adminRoutes from './routes/admin';
 import analyticsRoutes from './routes/analytics';
+import waitlistRoutes from './routes/waitlist';
 
 dotenv.config();
 
@@ -29,6 +30,8 @@ const PORT = process.env.PORT || 3001;
 
 const allowedOrigins = [
   'https://tranquil-exploration-production.up.railway.app',
+  'https://thespotrapp.com',
+  'https://www.thespotrapp.com',
   'http://localhost:3000',
 ];
 app.use(cors({
@@ -68,6 +71,8 @@ app.use('/api/mux', muxRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/connections', connectionRoutes);
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+app.use(express.static(path.join(process.cwd(), 'public')));
+app.use('/api/waitlist', waitlistRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/admin', express.static(path.join(process.cwd(), 'public/admin')));

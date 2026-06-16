@@ -1,11 +1,15 @@
 import express, { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
 import appleSignin from 'apple-signin-auth';
+import { Resend } from 'resend';
 import prisma from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { loginLimiter } from '../middleware/rateLimiters';
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -357,6 +361,66 @@ router.delete('/account', authenticate, async (req: AuthRequest, res: Response) 
   } catch (error) {
     console.error('Delete account error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Forgot password — sends reset email
+router.post('/forgot-password', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    if (!email) { res.status(400).json({ error: 'Email required' }); return; }
+    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+    // Always return ok to prevent email enumeration
+    if (!user) { res.json({ ok: true }); return; }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1 hour
+
+    await prisma.passwordResetToken.create({ data: { email: email.toLowerCase().trim(), token, expiresAt } });
+
+    const resetUrl = `${process.env.BACKEND_URL || 'https://spotr-production.up.railway.app'}/reset-password?token=${token}`;
+
+    await resend.emails.send({
+      from: 'SPOTR <noreply@thespotrapp.com>',
+      to: email,
+      subject: 'Reset your SPOTR password',
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px">
+          <h2 style="color:#FF6B2C;margin-bottom:8px">SPOTR</h2>
+          <p style="color:#111;font-size:16px">You requested a password reset. Click the button below to set a new password. This link expires in 1 hour.</p>
+          <a href="${resetUrl}" style="display:inline-block;margin:24px 0;padding:14px 28px;background:#FF6B2C;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;font-size:15px">Reset Password</a>
+          <p style="color:#888;font-size:13px">If you didn't request this, ignore this email.</p>
+        </div>
+      `,
+    });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('forgot-password:', err);
+    res.status(500).json({ error: 'Internal error' });
+  }
+});
+
+// Reset password with token — used by web page
+router.post('/reset-password', async (req: Request, res: Response) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) { res.status(400).json({ error: 'token and newPassword required' }); return; }
+    if (newPassword.length < 6) { res.status(400).json({ error: 'Password must be at least 6 characters' }); return; }
+
+    const record = await prisma.passwordResetToken.findUnique({ where: { token } });
+    if (!record || record.used || record.expiresAt < new Date()) {
+      res.status(400).json({ error: 'Invalid or expired reset link' }); return;
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await prisma.user.updateMany({ where: { email: record.email }, data: { password: hashed } });
+    await prisma.passwordResetToken.update({ where: { token }, data: { used: true } });
+
+    res.json({ ok: true, message: 'Password updated. You can now log in.' });
+  } catch (err) {
+    console.error('reset-password:', err);
+    res.status(500).json({ error: 'Internal error' });
   }
 });
 
