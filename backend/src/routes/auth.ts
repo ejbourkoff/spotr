@@ -9,7 +9,7 @@ import prisma from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { loginLimiter } from '../middleware/rateLimiters';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const getResend = () => new Resend(process.env.RESEND_API_KEY ?? 'placeholder');
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -380,7 +380,7 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
 
     const resetUrl = `${process.env.BACKEND_URL || 'https://spotr-production.up.railway.app'}/reset-password?token=${token}`;
 
-    await resend.emails.send({
+    await getResend().emails.send({
       from: 'SPOTR <noreply@thespotrapp.com>',
       to: email,
       subject: 'Reset your SPOTR password',
