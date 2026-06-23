@@ -6,20 +6,18 @@ const prisma = new PrismaClient();
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-async function addToLoops(entry: {
+async function addToBeehiiv(entry: {
   name: string;
   email: string;
   school: string;
   sport: string;
   classYear?: string;
 }) {
-  const apiKey = process.env.LOOPS_API_KEY;
-  if (!apiKey) return;
+  const apiKey = process.env.BEEHIIV_API_KEY;
+  const publicationId = process.env.BEEHIIV_PUBLICATION_ID;
+  if (!apiKey || !publicationId) return;
 
-  const [firstName, ...rest] = entry.name.trim().split(' ');
-  const lastName = rest.join(' ') || undefined;
-
-  await fetch('https://app.loops.so/api/v1/contacts/create', {
+  await fetch(`https://api.beehiiv.com/v2/publications/${publicationId}/subscriptions`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -27,13 +25,15 @@ async function addToLoops(entry: {
     },
     body: JSON.stringify({
       email: entry.email,
-      firstName,
-      lastName,
-      userGroup: 'waitlist',
-      source: 'website',
-      school: entry.school,
-      sport: entry.sport,
-      classYear: entry.classYear || '',
+      reactivate_existing: false,
+      send_welcome_email: false,
+      utm_source: 'website',
+      custom_fields: [
+        { name: 'Name', value: entry.name },
+        { name: 'School', value: entry.school },
+        { name: 'Sport', value: entry.sport },
+        { name: 'Class Year', value: entry.classYear || '' },
+      ],
     }),
   });
 }
@@ -82,8 +82,8 @@ router.post('/', async (req, res) => {
     return;
   }
 
-  addToLoops({ name: name.trim(), email: email.trim().toLowerCase(), school: school.trim(), sport: sport.trim(), classYear: classYear?.trim() }).catch(
-    (err) => console.error('[waitlist] loops error:', err)
+  addToBeehiiv({ name: name.trim(), email: email.trim().toLowerCase(), school: school.trim(), sport: sport.trim(), classYear: classYear?.trim() }).catch(
+    (err) => console.error('[waitlist] beehiiv error:', err)
   );
 
   res.json({ success: true, message: "You're on the list." });
