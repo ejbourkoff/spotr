@@ -1,6 +1,7 @@
 import express, { Response } from 'express';
 import prisma from '../lib/prisma';
 import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
+import { createNotification } from './notifications';
 
 const router = express.Router();
 
@@ -596,6 +597,58 @@ router.delete('/recruiting/offers/:id', authenticate, requireRole('ATHLETE'), as
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+// Coach offers received by this athlete — GET /api/athletes/recruiting/coach-offers
+router.get('/recruiting/coach-offers', authenticate, requireRole('ATHLETE'), async (req: AuthRequest, res: Response) => {
+  try {
+    const athlete = await prisma.athleteProfile.findUnique({ where: { userId: req.userId! } });
+    if (!athlete) return res.status(404).json({ error: 'Athlete profile not found' });
+    const offers = await prisma.coachOffer.findMany({
+      where: { athleteId: athlete.id },
+      include: {
+        coach: { select: { id: true, name: true, organization: true, title: true, user: { select: { id: true, avatarUrl: true } } } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ offers });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Respond to a coach offer — PUT /api/athletes/recruiting/coach-offers/:id/(accept|decline)
+async function respondToCoachOffer(req: AuthRequest, res: Response, accept: boolean) {
+  try {
+    const athlete = await prisma.athleteProfile.findUnique({ where: { userId: req.userId! } });
+    if (!athlete) return res.status(404).json({ error: 'Athlete profile not found' });
+    const offer = await prisma.coachOffer.findUnique({
+      where: { id: req.params.id },
+      include: { coach: { select: { organization: true, userId: true } } },
+    });
+    if (!offer || offer.athleteId !== athlete.id) return res.status(404).json({ error: 'Offer not found' });
+    if (offer.status !== 'PENDING') return res.status(400).json({ error: 'Offer already resolved' });
+
+    const updated = await prisma.coachOffer.update({
+      where: { id: offer.id },
+      data: { status: accept ? 'ACCEPTED' : 'DECLINED' },
+    });
+
+    // On accept, surface it on the athlete's public recruiting timeline
+    if (accept) {
+      await prisma.schoolOffer.create({
+        data: { athleteId: athlete.id, schoolName: offer.coach.organization ?? 'School', committed: false },
+      });
+    }
+
+    await createNotification(offer.coach.userId, req.userId!, accept ? 'offer_accepted' : 'offer_declined');
+    res.json({ offer: updated });
+  } catch (error) {
+    console.error('Respond to coach offer error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+router.put('/recruiting/coach-offers/:id/accept', authenticate, requireRole('ATHLETE'), (req, res) => respondToCoachOffer(req, res, true));
+router.put('/recruiting/coach-offers/:id/decline', authenticate, requireRole('ATHLETE'), (req, res) => respondToCoachOffer(req, res, false));
 
 // Add game log entry
 router.post('/profile/stats/:statId/gamelog', authenticate, requireRole('ATHLETE'), async (req: AuthRequest, res: Response) => {

@@ -1,6 +1,7 @@
 import express, { Response } from 'express';
 import prisma from '../lib/prisma';
 import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
+import { createNotification } from './notifications';
 
 const router = express.Router();
 
@@ -266,10 +267,81 @@ router.post('/lists/:listId/athletes', authenticate, requireRole('COACH'), async
       include: { athlete: true },
     });
 
+    // Notify the athlete that a coach is recruiting them (only on first add across all lists)
+    if (entry.athlete?.userId) {
+      const otherEntries = await prisma.savedListEntry.count({
+        where: {
+          athleteId,
+          list: { coachId: coach.id },
+          id: { not: entry.id },
+        },
+      });
+      if (otherEntries === 0) {
+        await createNotification(entry.athlete.userId, req.userId!, 'coach_interest');
+      }
+    }
+
     res.status(201).json({ entry });
   } catch (error: any) {
     if (error.code === 'P2002') return res.status(400).json({ error: 'Athlete already in list' });
     console.error('Add athlete to list error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Extend a recruiting offer to an athlete — POST /api/coaches/offers
+router.post('/offers', authenticate, requireRole('COACH'), async (req: AuthRequest, res: Response) => {
+  try {
+    const { athleteId, offerType, note } = req.body;
+    if (!athleteId || !offerType) {
+      return res.status(400).json({ error: 'athleteId and offerType are required' });
+    }
+    const VALID = ['PREFERRED_WALK_ON', 'PARTIAL', 'FULL'];
+    if (!VALID.includes(offerType)) {
+      return res.status(400).json({ error: 'Invalid offerType' });
+    }
+
+    const coach = await prisma.coachProfile.findUnique({ where: { userId: req.userId! } });
+    if (!coach) return res.status(404).json({ error: 'Coach profile not found' });
+
+    const athlete = await prisma.athleteProfile.findUnique({
+      where: { id: athleteId },
+      select: { id: true, userId: true },
+    });
+    if (!athlete) return res.status(404).json({ error: 'Athlete not found' });
+
+    // One active (pending) offer per coach→athlete pair
+    const existing = await prisma.coachOffer.findFirst({
+      where: { coachId: coach.id, athleteId, status: 'PENDING' },
+    });
+    if (existing) return res.status(400).json({ error: 'You already have a pending offer to this athlete' });
+
+    const offer = await prisma.coachOffer.create({
+      data: { coachId: coach.id, athleteId, offerType, note: note ?? null },
+    });
+
+    await createNotification(athlete.userId, req.userId!, 'coach_offer');
+
+    res.status(201).json({ offer });
+  } catch (error) {
+    console.error('Extend offer error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Offers this coach has sent — GET /api/coaches/offers
+router.get('/offers', authenticate, requireRole('COACH'), async (req: AuthRequest, res: Response) => {
+  try {
+    const coach = await prisma.coachProfile.findUnique({ where: { userId: req.userId! } });
+    if (!coach) return res.status(404).json({ error: 'Coach profile not found' });
+
+    const offers = await prisma.coachOffer.findMany({
+      where: { coachId: coach.id },
+      include: { athlete: { select: { id: true, name: true, sport: true, position: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ offers });
+  } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
 });

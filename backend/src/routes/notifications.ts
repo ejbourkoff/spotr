@@ -128,6 +128,10 @@ function pushBody(type: string, actorName: string): string {
     case 'mention':             return `${actorName} mentioned you`;
     case 'connection_request':  return `${actorName} wants to connect`;
     case 'connection_accepted': return `${actorName} accepted your connection`;
+    case 'coach_interest':      return `${actorName} is recruiting you`;
+    case 'coach_offer':         return `${actorName} extended you an offer`;
+    case 'offer_accepted':      return `${actorName} accepted your offer`;
+    case 'offer_declined':      return `${actorName} declined your offer`;
     default:                    return `New notification from ${actorName}`;
   }
 }

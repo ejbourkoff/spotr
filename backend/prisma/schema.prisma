@@ -122,6 +122,7 @@ model AthleteProfile {
   shortLinks    AthleteShortLink[]
   recruitingEvents RecruitingEvent[]
   schoolOffers  SchoolOffer[]
+  coachOffers   CoachOffer[]  @relation("AthleteCoachOffers")
 
   @@map("athlete_profiles")
 }
@@ -145,6 +146,7 @@ model CoachProfile {
 
   user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   lists         SavedList[] @relation("CoachLists")
+  coachOffers   CoachOffer[] @relation("CoachOffers")
 
   @@map("coach_profiles")
 }
@@ -235,6 +237,25 @@ model SchoolOffer {
 
   @@index([athleteId])
   @@map("school_offers")
+}
+
+// A recruiting offer extended by a COACH to an ATHLETE (distinct from brand NIL Offer).
+model CoachOffer {
+  id         String   @id @default(cuid())
+  coachId    String   // coachProfile id
+  athleteId  String   // athleteProfile id
+  offerType  String   // "PREFERRED_WALK_ON" | "PARTIAL" | "FULL"
+  note       String?  @db.Text
+  status     String   @default("PENDING") // "PENDING" | "ACCEPTED" | "DECLINED"
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  coach      CoachProfile   @relation("CoachOffers", fields: [coachId], references: [id], onDelete: Cascade)
+  athlete    AthleteProfile @relation("AthleteCoachOffers", fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@index([athleteId])
+  @@index([coachId])
+  @@map("coach_offers")
 }
 
 model GameLogEntry {
