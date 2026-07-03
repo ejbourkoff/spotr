@@ -14,6 +14,31 @@ const userInclude = {
   },
 }
 
+// A coach and an athlete must have an ACCEPTED connection before either can DM the other.
+// Returns true if a connection is REQUIRED but MISSING (i.e. the message should be blocked).
+async function coachAthleteConnectionMissing(
+  senderId: string,
+  senderRole: string | undefined,
+  receiverId: string,
+  receiverRole: string | undefined
+): Promise<boolean> {
+  const isCoachAthletePair =
+    (senderRole === 'ATHLETE' && receiverRole === 'COACH') ||
+    (senderRole === 'COACH' && receiverRole === 'ATHLETE')
+  if (!isCoachAthletePair) return false
+
+  const connection = await prisma.connection.findFirst({
+    where: {
+      status: 'ACCEPTED',
+      OR: [
+        { requesterId: senderId, addresseeId: receiverId },
+        { requesterId: receiverId, addresseeId: senderId },
+      ],
+    },
+  })
+  return !connection
+}
+
 // GET /api/messages/conversations — list all unique conversations with last message + unread count
 router.get('/conversations', authenticate, async (req: AuthRequest, res: Response) => {
   try {
@@ -114,20 +139,9 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     if (!receiver) return res.status(404).json({ error: 'User not found' })
     if (receiver.id === senderId) return res.status(400).json({ error: 'Cannot message yourself' })
 
-    // Athletes must be connected to a coach before they can initiate a message
-    if (sender?.role === 'ATHLETE' && receiver.role === 'COACH') {
-      const connection = await prisma.connection.findFirst({
-        where: {
-          status: 'ACCEPTED',
-          OR: [
-            { requesterId: senderId, addresseeId: receiverId },
-            { requesterId: receiverId, addresseeId: senderId },
-          ],
-        },
-      })
-      if (!connection) {
-        return res.status(403).json({ error: 'Connect with this coach first before messaging', requiresConnection: true })
-      }
+    // A coach and an athlete must be connected before either can message the other
+    if (await coachAthleteConnectionMissing(senderId, sender?.role, receiverId, receiver.role)) {
+      return res.status(403).json({ error: 'Connect first before messaging', requiresConnection: true })
     }
 
     const message = await prisma.message.create({
@@ -154,13 +168,19 @@ router.post('/share-post', authenticate, async (req: AuthRequest, res: Response)
       return res.status(400).json({ error: 'receiverId and postId are required' })
     }
 
-    const [receiver, post] = await Promise.all([
+    const [sender, receiver, post] = await Promise.all([
+      prisma.user.findUnique({ where: { id: senderId }, select: { role: true } }),
       prisma.user.findUnique({ where: { id: receiverId } }),
       prisma.post.findUnique({ where: { id: postId } }),
     ])
     if (!receiver) return res.status(404).json({ error: 'User not found' })
     if (!post) return res.status(404).json({ error: 'Post not found' })
     if (receiver.id === senderId) return res.status(400).json({ error: 'Cannot message yourself' })
+
+    // A coach and an athlete must be connected before sharing a post via DM
+    if (await coachAthleteConnectionMissing(senderId, sender?.role, receiverId, receiver.role)) {
+      return res.status(403).json({ error: 'Connect first before messaging', requiresConnection: true })
+    }
 
     const message = await prisma.message.create({
       data: { senderId, receiverId: receiver.id, body, type: 'shared_post', sharedPostId: postId, subject: '' },
