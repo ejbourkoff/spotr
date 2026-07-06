@@ -346,6 +346,91 @@ router.get('/offers', authenticate, requireRole('COACH'), async (req: AuthReques
   }
 });
 
+// Coach stats — real counts for the coach hero (replaces hashValue/mislabeled fakes).
+// GET /api/coaches/stats
+router.get('/stats', authenticate, requireRole('COACH'), async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const coach = await prisma.coachProfile.findUnique({ where: { userId } });
+    if (!coach) return res.status(404).json({ error: 'Coach profile not found' });
+
+    const [entries, connections, needs] = await Promise.all([
+      prisma.savedListEntry.findMany({ where: { list: { coachId: coach.id } }, select: { athleteId: true } }),
+      prisma.connection.count({
+        where: { status: 'ACCEPTED', OR: [{ requesterId: userId }, { addresseeId: userId }] },
+      }),
+      prisma.rosterNeed.count({ where: { coachId: coach.id } }),
+    ]);
+    const prospects = new Set(entries.map(e => e.athleteId)).size;
+    res.json({ prospects, connections, needs });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Coach scouting grades (private per coach) — GET/PUT /api/coaches/grades/:athleteId
+router.get('/grades/:athleteId', authenticate, requireRole('COACH'), async (req: AuthRequest, res: Response) => {
+  try {
+    const coach = await prisma.coachProfile.findUnique({ where: { userId: req.userId! } });
+    if (!coach) return res.status(404).json({ error: 'Coach profile not found' });
+    const grade = await prisma.athleteGrade.findUnique({
+      where: { coachId_athleteId: { coachId: coach.id, athleteId: req.params.athleteId } },
+    });
+    res.json({ grade });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.put('/grades/:athleteId', authenticate, requireRole('COACH'), async (req: AuthRequest, res: Response) => {
+  try {
+    const coach = await prisma.coachProfile.findUnique({ where: { userId: req.userId! } });
+    if (!coach) return res.status(404).json({ error: 'Coach profile not found' });
+    const { speed, strength, iq, agility, overall } = req.body;
+    const data = { speed: speed ?? null, strength: strength ?? null, iq: iq ?? null, agility: agility ?? null, overall: overall ?? null };
+    const grade = await prisma.athleteGrade.upsert({
+      where: { coachId_athleteId: { coachId: coach.id, athleteId: req.params.athleteId } },
+      update: data,
+      create: { coachId: coach.id, athleteId: req.params.athleteId, ...data },
+    });
+    res.json({ grade });
+  } catch (error) {
+    console.error('Save grade error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Coach scouting notes (private per coach) — GET/PUT /api/coaches/notes/:athleteId
+router.get('/notes/:athleteId', authenticate, requireRole('COACH'), async (req: AuthRequest, res: Response) => {
+  try {
+    const coach = await prisma.coachProfile.findUnique({ where: { userId: req.userId! } });
+    if (!coach) return res.status(404).json({ error: 'Coach profile not found' });
+    const note = await prisma.coachNote.findUnique({
+      where: { coachId_athleteId: { coachId: coach.id, athleteId: req.params.athleteId } },
+    });
+    res.json({ note });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.put('/notes/:athleteId', authenticate, requireRole('COACH'), async (req: AuthRequest, res: Response) => {
+  try {
+    const coach = await prisma.coachProfile.findUnique({ where: { userId: req.userId! } });
+    if (!coach) return res.status(404).json({ error: 'Coach profile not found' });
+    const { body } = req.body;
+    const note = await prisma.coachNote.upsert({
+      where: { coachId_athleteId: { coachId: coach.id, athleteId: req.params.athleteId } },
+      update: { body: body ?? '' },
+      create: { coachId: coach.id, athleteId: req.params.athleteId, body: body ?? '' },
+    });
+    res.json({ note });
+  } catch (error) {
+    console.error('Save note error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Roster Needs — coach declares gaps; we compute how many saved athletes fill each
 // and how many discoverable prospects match.
 

@@ -148,6 +148,8 @@ model CoachProfile {
   lists         SavedList[] @relation("CoachLists")
   coachOffers   CoachOffer[] @relation("CoachOffers")
   needs         RosterNeed[] @relation("CoachNeeds")
+  grades        AthleteGrade[] @relation("CoachGrades")
+  notes         CoachNote[]  @relation("CoachNotes")
 
   @@map("coach_profiles")
 }
@@ -238,6 +240,40 @@ model SchoolOffer {
 
   @@index([athleteId])
   @@map("school_offers")
+}
+
+// A coach's private scouting grade for an athlete (letter grades per axis).
+model AthleteGrade {
+  id        String   @id @default(cuid())
+  coachId   String
+  athleteId String   // athleteProfile id
+  speed     String?
+  strength  String?
+  iq        String?
+  agility   String?
+  overall   String?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  coach     CoachProfile @relation("CoachGrades", fields: [coachId], references: [id], onDelete: Cascade)
+
+  @@unique([coachId, athleteId])
+  @@map("athlete_grades")
+}
+
+// A coach's private scouting note for an athlete (server-synced, replaces UserDefaults).
+model CoachNote {
+  id        String   @id @default(cuid())
+  coachId   String
+  athleteId String   // athleteProfile id
+  body      String   @db.Text
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  coach     CoachProfile @relation("CoachNotes", fields: [coachId], references: [id], onDelete: Cascade)
+
+  @@unique([coachId, athleteId])
+  @@map("coach_notes")
 }
 
 // A roster gap a coach is recruiting to fill (e.g. 2 WR, class 2027).
