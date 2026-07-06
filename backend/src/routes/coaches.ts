@@ -346,4 +346,280 @@ router.get('/offers', authenticate, requireRole('COACH'), async (req: AuthReques
   }
 });
 
+// Roster Needs — coach declares gaps; we compute how many saved athletes fill each
+// and how many discoverable prospects match.
+
+function needAthleteWhere(sport: string, position: string, classYear: string | null) {
+  const w: any = {
+    sport:    { contains: sport,    mode: 'insensitive' },
+    position: { contains: position, mode: 'insensitive' },
+  };
+  if (classYear) w.classYear = classYear;
+  return w;
+}
+
+// GET /api/coaches/needs — list needs with fill + match counts
+router.get('/needs', authenticate, requireRole('COACH'), async (req: AuthRequest, res: Response) => {
+  try {
+    const coach = await prisma.coachProfile.findUnique({ where: { userId: req.userId! } });
+    if (!coach) return res.status(404).json({ error: 'Coach profile not found' });
+
+    const needs = await prisma.rosterNeed.findMany({
+      where: { coachId: coach.id },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const result = await Promise.all(needs.map(async n => {
+      const athleteWhere = needAthleteWhere(n.sport, n.position, n.classYear);
+      const [filled, matchCount] = await Promise.all([
+        // saved (boarded) athletes that match this need
+        prisma.savedListEntry.count({
+          where: { list: { coachId: coach.id }, athlete: { is: athleteWhere } },
+        }),
+        prisma.athleteProfile.count({ where: athleteWhere }),
+      ]);
+      return { ...n, filled, matchCount };
+    }));
+
+    res.json({ needs: result });
+  } catch (error) {
+    console.error('Get needs error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/coaches/needs — create a need
+router.post('/needs', authenticate, requireRole('COACH'), async (req: AuthRequest, res: Response) => {
+  try {
+    const { sport, position, classYear, slots } = req.body;
+    if (!sport || !position) return res.status(400).json({ error: 'sport and position are required' });
+    const coach = await prisma.coachProfile.findUnique({ where: { userId: req.userId! } });
+    if (!coach) return res.status(404).json({ error: 'Coach profile not found' });
+
+    const need = await prisma.rosterNeed.create({
+      data: {
+        coachId: coach.id, sport, position,
+        classYear: classYear ?? null,
+        slots: Math.max(1, parseInt(slots ?? '1', 10) || 1),
+      },
+    });
+    res.status(201).json({ need: { ...need, filled: 0, matchCount: 0 } });
+  } catch (error) {
+    console.error('Create need error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /api/coaches/needs/:id
+router.delete('/needs/:id', authenticate, requireRole('COACH'), async (req: AuthRequest, res: Response) => {
+  try {
+    const coach = await prisma.coachProfile.findUnique({ where: { userId: req.userId! } });
+    if (!coach) return res.status(404).json({ error: 'Coach profile not found' });
+    const need = await prisma.rosterNeed.findUnique({ where: { id: req.params.id } });
+    if (!need || need.coachId !== coach.id) return res.status(404).json({ error: 'Need not found' });
+    await prisma.rosterNeed.delete({ where: { id: req.params.id } });
+    res.json({ message: 'Deleted' });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/coaches/needs/:id/matches — prospects matching a need
+router.get('/needs/:id/matches', authenticate, requireRole('COACH'), async (req: AuthRequest, res: Response) => {
+  try {
+    const coach = await prisma.coachProfile.findUnique({ where: { userId: req.userId! } });
+    if (!coach) return res.status(404).json({ error: 'Coach profile not found' });
+    const need = await prisma.rosterNeed.findUnique({ where: { id: req.params.id } });
+    if (!need || need.coachId !== coach.id) return res.status(404).json({ error: 'Need not found' });
+
+    const profiles = await prisma.athleteProfile.findMany({
+      where: needAthleteWhere(need.sport, need.position, need.classYear),
+      take: 50,
+      orderBy: { updatedAt: 'desc' },
+      include: { user: { select: { id: true, avatarUrl: true } } },
+    });
+
+    const athletes = profiles.map(p => ({
+      id: p.id, userId: p.user.id, name: p.name, sport: p.sport, position: p.position,
+      schoolTeam: p.schoolTeam, classYear: p.classYear, location: p.location, state: p.state,
+      height: p.height, weight: p.weight, pinnedReelUrl: p.pinnedReelUrl,
+      avatarUrl: p.user.avatarUrl, openToNIL: p.openToNIL, topStats: [], iFollow: false,
+    }));
+    res.json({ athletes });
+  } catch (error) {
+    console.error('Need matches error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Rising prospects — athletes with the most engagement momentum over the last 7 days.
+// GET /api/coaches/rising?sport=&state=&limit=
+router.get('/rising', authenticate, requireRole('COACH'), async (req: AuthRequest, res: Response) => {
+  try {
+    const { sport, state, limit = '15' } = req.query;
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    // Momentum signals in the window, grouped by the athlete's userId
+    const [follows, views] = await Promise.all([
+      prisma.follow.groupBy({
+        by: ['followingId'],
+        where: { createdAt: { gte: since } },
+        _count: { followingId: true },
+      }),
+      prisma.profileView.groupBy({
+        by: ['profileUserId'],
+        where: { createdAt: { gte: since } },
+        _count: { profileUserId: true },
+      }),
+    ]);
+
+    const score = new Map<string, { follows: number; views: number }>();
+    for (const f of follows) {
+      const s = score.get(f.followingId) ?? { follows: 0, views: 0 };
+      s.follows = f._count.followingId;
+      score.set(f.followingId, s);
+    }
+    for (const v of views) {
+      const s = score.get(v.profileUserId) ?? { follows: 0, views: 0 };
+      s.views = v._count.profileUserId;
+      score.set(v.profileUserId, s);
+    }
+    if (score.size === 0) return res.json({ prospects: [] });
+
+    // Athlete profiles for the moving userIds, filtered to the coach's sport/region
+    const where: any = { userId: { in: [...score.keys()] } };
+    if (sport) where.sport = { contains: sport as string, mode: 'insensitive' };
+    if (state) where.state = state as string;
+
+    const profiles = await prisma.athleteProfile.findMany({
+      where,
+      include: { user: { select: { id: true, avatarUrl: true } } },
+    });
+
+    const prospects = profiles
+      .map(p => {
+        const s = score.get(p.userId) ?? { follows: 0, views: 0 };
+        return {
+          id: p.id,
+          userId: p.userId,
+          name: p.name,
+          sport: p.sport,
+          position: p.position,
+          classYear: p.classYear,
+          state: p.state,
+          height: p.height,
+          schoolTeam: p.schoolTeam,
+          avatarUrl: p.user.avatarUrl,
+          newFollowers: s.follows,
+          recentViews: s.views,
+          trendScore: s.follows * 2 + s.views,
+        };
+      })
+      .filter(p => p.trendScore > 0)
+      .sort((a, b) => b.trendScore - a.trendScore)
+      .slice(0, parseInt(limit as string));
+
+    res.json({ prospects });
+  } catch (error) {
+    console.error('Rising prospects error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// New Film — recent highlights posted by athletes on the coach's boards.
+// GET /api/coaches/new-film?days=7
+router.get('/new-film', authenticate, requireRole('COACH'), async (req: AuthRequest, res: Response) => {
+  try {
+    const { days = '7' } = req.query;
+    const coach = await prisma.coachProfile.findUnique({ where: { userId: req.userId! } });
+    if (!coach) return res.status(404).json({ error: 'Coach profile not found' });
+
+    const entries = await prisma.savedListEntry.findMany({
+      where: { list: { coachId: coach.id } },
+      select: { athlete: { select: { userId: true } } },
+    });
+    const userIds = [...new Set(entries.map(e => e.athlete.userId))];
+    if (userIds.length === 0) return res.json({ reels: [], athleteCount: 0 });
+
+    const since = new Date(Date.now() - parseInt(days as string) * 24 * 60 * 60 * 1000);
+    const reels = await prisma.post.findMany({
+      where: { authorId: { in: userIds }, isReel: true, createdAt: { gte: since } },
+      include: {
+        author: {
+          select: {
+            id: true, role: true, avatarUrl: true,
+            athleteProfile: {
+              select: { id: true, name: true, sport: true, position: true, schoolTeam: true, classYear: true, location: true, state: true, height: true, openToNIL: true },
+            },
+          },
+        },
+        _count: { select: { likes: true, comments: true, saves: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    const distinctAthletes = new Set(reels.map(r => r.author.id)).size;
+    res.json({ reels: reels.map(r => ({ ...r, isLiked: false, isSaved: false })), athleteCount: distinctAthletes });
+  } catch (error) {
+    console.error('New film error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Scout Feed — vertical film feed of prospect highlights matching filters.
+// GET /api/coaches/scout-feed?sport=&position=&classYear=&state=&limit=&offset=
+router.get('/scout-feed', authenticate, requireRole('COACH'), async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const { sport, position, classYear, state, limit = '10', offset = '0' } = req.query;
+
+    const athleteWhere: any = {};
+    if (sport)     athleteWhere.sport     = { contains: sport as string,    mode: 'insensitive' };
+    if (position)  athleteWhere.position  = { contains: position as string, mode: 'insensitive' };
+    if (classYear) athleteWhere.classYear = classYear as string;
+    if (state)     athleteWhere.state     = state as string;
+
+    const reels = await prisma.post.findMany({
+      where: {
+        isReel: true,
+        author: { role: 'ATHLETE', athleteProfile: { is: athleteWhere } },
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            role: true,
+            avatarUrl: true,
+            athleteProfile: {
+              select: {
+                id: true, name: true, sport: true, position: true, schoolTeam: true,
+                classYear: true, location: true, state: true, height: true,
+                openToNIL: true,
+              },
+            },
+          },
+        },
+        _count: { select: { likes: true, comments: true, saves: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: parseInt(limit as string),
+      skip: parseInt(offset as string),
+    });
+
+    const likedPostIds = new Set(
+      (await prisma.like.findMany({
+        where: { userId, postId: { in: reels.map(r => r.id) } },
+        select: { postId: true },
+      })).map(l => l.postId)
+    );
+
+    const result = reels.map(reel => ({ ...reel, isLiked: likedPostIds.has(reel.id), isSaved: false }));
+    res.json({ reels: result, total: result.length });
+  } catch (error) {
+    console.error('Scout feed error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

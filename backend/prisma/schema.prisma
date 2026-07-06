@@ -147,6 +147,7 @@ model CoachProfile {
   user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   lists         SavedList[] @relation("CoachLists")
   coachOffers   CoachOffer[] @relation("CoachOffers")
+  needs         RosterNeed[] @relation("CoachNeeds")
 
   @@map("coach_profiles")
 }
@@ -237,6 +238,22 @@ model SchoolOffer {
 
   @@index([athleteId])
   @@map("school_offers")
+}
+
+// A roster gap a coach is recruiting to fill (e.g. 2 WR, class 2027).
+model RosterNeed {
+  id        String   @id @default(cuid())
+  coachId   String
+  sport     String
+  position  String
+  classYear String?
+  slots     Int      @default(1)
+  createdAt DateTime @default(now())
+
+  coach     CoachProfile @relation("CoachNeeds", fields: [coachId], references: [id], onDelete: Cascade)
+
+  @@index([coachId])
+  @@map("roster_needs")
 }
 
 // A recruiting offer extended by a COACH to an ATHLETE (distinct from brand NIL Offer).
