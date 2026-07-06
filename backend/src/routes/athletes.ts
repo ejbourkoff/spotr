@@ -598,6 +598,74 @@ router.delete('/recruiting/offers/:id', authenticate, requireRole('ATHLETE'), as
   }
 });
 
+// Recruiting hub — consolidated "who's recruiting me" for the athlete.
+// GET /api/athletes/recruiting-hub
+router.get('/recruiting-hub', authenticate, requireRole('ATHLETE'), async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const me = await prisma.athleteProfile.findUnique({ where: { userId } });
+    if (!me) return res.status(404).json({ error: 'Athlete profile not found' });
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const coachSelect = { select: { name: true, organization: true, schoolLevel: true } };
+
+    const [boardEntries, views, connections] = await Promise.all([
+      prisma.savedListEntry.findMany({
+        where: { athleteId: me.id },
+        include: { list: { include: { coach: { include: { user: { select: { id: true, avatarUrl: true } } } } } } },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.profileView.findMany({
+        where: { profileUserId: userId, createdAt: { gte: since } },
+        include: { viewer: { select: { id: true, avatarUrl: true, coachProfile: coachSelect } } },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.connection.findMany({
+        where: { status: 'ACCEPTED', OR: [{ requesterId: userId }, { addresseeId: userId }] },
+        include: {
+          requester: { select: { id: true, avatarUrl: true, role: true, coachProfile: coachSelect } },
+          addressee: { select: { id: true, avatarUrl: true, role: true, coachProfile: coachSelect } },
+        },
+      }),
+    ]);
+
+    // Coaches who have this athlete on a board (dedup by coach)
+    const seenCoach = new Set<string>();
+    const recruiting: any[] = [];
+    for (const e of boardEntries) {
+      const c = e.list?.coach;
+      if (!c || seenCoach.has(c.id)) continue;
+      seenCoach.add(c.id);
+      recruiting.push({ userId: c.user.id, name: c.name, organization: c.organization, schoolLevel: c.schoolLevel, avatarUrl: c.user.avatarUrl, at: e.createdAt });
+    }
+
+    // Distinct coach viewers this week
+    const seenViewer = new Set<string>();
+    const viewers: any[] = [];
+    for (const v of views) {
+      if (!v.viewer.coachProfile || seenViewer.has(v.viewer.id)) continue;
+      seenViewer.add(v.viewer.id);
+      viewers.push({ userId: v.viewer.id, name: v.viewer.coachProfile.name, organization: v.viewer.coachProfile.organization, schoolLevel: v.viewer.coachProfile.schoolLevel, avatarUrl: v.viewer.avatarUrl, at: v.createdAt });
+    }
+
+    // Connected coaches
+    const connected: any[] = [];
+    for (const cn of connections) {
+      const other = cn.requesterId === userId ? cn.addressee : cn.requester;
+      if (other.role !== 'COACH' || !other.coachProfile) continue;
+      connected.push({ userId: other.id, name: other.coachProfile.name, organization: other.coachProfile.organization, schoolLevel: other.coachProfile.schoolLevel, avatarUrl: other.avatarUrl });
+    }
+
+    res.json({
+      stats: { views: viewers.length, recruiting: recruiting.length, connected: connected.length },
+      recruiting, viewers, connected,
+    });
+  } catch (error) {
+    console.error('Recruiting hub error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Coach offers received by this athlete — GET /api/athletes/recruiting/coach-offers
 router.get('/recruiting/coach-offers', authenticate, requireRole('ATHLETE'), async (req: AuthRequest, res: Response) => {
   try {
