@@ -25,6 +25,21 @@ import waitlistRoutes from './routes/waitlist';
 
 dotenv.config();
 
+// Fail-closed secret validation: a weak or missing JWT_SECRET lets anyone forge
+// tokens for any user, so refuse to start rather than run insecurely.
+const JWT_SECRET = process.env.JWT_SECRET || '';
+const WEAK_SECRETS = ['super-secret', 'secret', 'changeme', 'password', 'jwt-secret', 'dev', 'test'];
+const looksWeak =
+  JWT_SECRET.length < 32 ||
+  WEAK_SECRETS.some((w) => JWT_SECRET.toLowerCase().startsWith(w));
+if (!JWT_SECRET || looksWeak) {
+  console.error(
+    'FATAL: JWT_SECRET is missing or weak. Set a strong random value ' +
+      '(>=32 chars, e.g. `openssl rand -base64 48`) before starting the server.'
+  );
+  process.exit(1);
+}
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 

@@ -49,6 +49,19 @@ router.get('/upload-status/:uploadId', authenticate, async (req: AuthRequest, re
 // Mux webhook — called when a video finishes processing
 router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   try {
+    // Verify the webhook came from Mux before trusting its contents. Without this,
+    // anyone who knows a post's muxUploadId can overwrite its video/thumbnail URLs.
+    const secret = process.env.MUX_WEBHOOK_SECRET
+    if (secret) {
+      try {
+        mux.webhooks.verifySignature(req.body, req.headers as Record<string, string>, secret)
+      } catch {
+        return res.status(401).json({ error: 'Invalid webhook signature' })
+      }
+    } else {
+      console.warn('MUX_WEBHOOK_SECRET not set — webhook signature not verified')
+    }
+
     const event = JSON.parse(req.body.toString())
 
     if (event.type === 'video.asset.ready') {

@@ -1,12 +1,90 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 
 const router = Router();
 const prisma = new PrismaClient();
 
-function adminAuth(_req: Request, _res: Response, next: NextFunction): void {
-  next();
+// Escape untrusted text before interpolating into an HTML response (stored-XSS guard).
+function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Admin session tokens are signed with a dedicated secret and carry an `admin: true` claim,
+// so a normal user JWT can never satisfy adminAuth even if JWT_SECRET is shared.
+const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET || process.env.JWT_SECRET || '';
+
+function adminConfigured(): boolean {
+  return Boolean((process.env.ADMIN_PASSWORD_HASH || process.env.ADMIN_PASSWORD) && ADMIN_JWT_SECRET);
+}
+
+// POST /api/admin/login — exchange admin credentials for a short-lived admin token.
+router.post('/login', async (req: Request, res: Response) => {
+  try {
+    if (!adminConfigured()) {
+      res.status(503).json({ error: 'Admin access is not configured on this server' });
+      return;
+    }
+    const { email, password } = req.body ?? {};
+    if (!email || !password) {
+      res.status(400).json({ error: 'email and password required' });
+      return;
+    }
+
+    const expectedEmail = (process.env.ADMIN_EMAIL || '').toLowerCase().trim();
+    const emailOk = !expectedEmail || expectedEmail === String(email).toLowerCase().trim();
+
+    let passwordOk = false;
+    if (process.env.ADMIN_PASSWORD_HASH) {
+      passwordOk = await bcrypt.compare(String(password), process.env.ADMIN_PASSWORD_HASH);
+    } else if (process.env.ADMIN_PASSWORD) {
+      // Constant-time compare to avoid leaking length/prefix via timing.
+      const a = Buffer.from(String(password));
+      const b = Buffer.from(process.env.ADMIN_PASSWORD);
+      passwordOk = a.length === b.length && require('crypto').timingSafeEqual(a, b);
+    }
+
+    if (!emailOk || !passwordOk) {
+      res.status(401).json({ error: 'Invalid admin credentials' });
+      return;
+    }
+
+    const token = jwt.sign({ admin: true }, ADMIN_JWT_SECRET, { expiresIn: '12h' });
+    res.json({ token });
+  } catch (err) {
+    console.error('admin login error:', err);
+    res.status(500).json({ error: 'Internal error' });
+  }
+});
+
+// Fail-closed admin gate: requires a valid admin token. If admin auth is not configured,
+// every admin route is denied rather than left open.
+function adminAuth(req: Request, res: Response, next: NextFunction): void {
+  if (!adminConfigured()) {
+    res.status(503).json({ error: 'Admin access is not configured on this server' });
+    return;
+  }
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token) {
+    res.status(401).json({ error: 'Admin authentication required' });
+    return;
+  }
+  try {
+    const decoded = jwt.verify(token, ADMIN_JWT_SECRET) as { admin?: boolean };
+    if (!decoded.admin) {
+      res.status(403).json({ error: 'Admin privileges required' });
+      return;
+    }
+    next();
+  } catch {
+    res.status(401).json({ error: 'Invalid or expired admin token' });
+  }
 }
 
 // Overview stats
@@ -405,12 +483,12 @@ router.get('/waitlist', adminAuth, async (_req, res) => {
       .map(
         (e) => `
       <tr>
-        <td>${e.createdAt.toLocaleDateString()}</td>
-        <td>${e.name}</td>
-        <td><a href="mailto:${e.email}">${e.email}</a></td>
-        <td>${e.school}</td>
-        <td>${e.sport}</td>
-        <td>${e.classYear ?? '—'}</td>
+        <td>${escapeHtml(e.createdAt.toLocaleDateString())}</td>
+        <td>${escapeHtml(e.name)}</td>
+        <td><a href="mailto:${encodeURIComponent(e.email)}">${escapeHtml(e.email)}</a></td>
+        <td>${escapeHtml(e.school)}</td>
+        <td>${escapeHtml(e.sport)}</td>
+        <td>${escapeHtml(e.classYear ?? '—')}</td>
       </tr>`
       )
       .join('');

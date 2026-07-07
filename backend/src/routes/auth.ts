@@ -18,10 +18,15 @@ const router = express.Router();
 // Sign up
 router.post('/signup', async (req: Request, res: Response) => {
   try {
-    const { email, password, role } = req.body;
+    const { password, role } = req.body;
+    const email = typeof req.body.email === 'string' ? req.body.email.toLowerCase().trim() : '';
 
     if (!email || !password || !role) {
       return res.status(400).json({ error: 'Email, password, and role are required' });
+    }
+
+    if (typeof password !== 'string' || password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
     }
 
     if (!['ATHLETE', 'COACH', 'BRAND', 'FAN'].includes(role)) {
@@ -91,14 +96,15 @@ router.post('/signup', async (req: Request, res: Response) => {
     res.status(201).json({ user: fullUser, token });
   } catch (error: any) {
     console.error('Signup error:', error);
-    res.status(500).json({ error: 'Internal server error', detail: error?.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // Login
 router.post('/login', loginLimiter, async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
+    const { password } = req.body;
+    const email = typeof req.body.email === 'string' ? req.body.email.toLowerCase().trim() : '';
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
