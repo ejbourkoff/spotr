@@ -22,6 +22,7 @@ import connectionRoutes from './routes/connections';
 import adminRoutes from './routes/admin';
 import analyticsRoutes from './routes/analytics';
 import waitlistRoutes from './routes/waitlist';
+import prisma from './lib/prisma';
 
 dotenv.config();
 
@@ -93,6 +94,18 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/admin', express.static(path.join(process.cwd(), 'public/admin')));
 app.get('/admin', (_req, res) => res.sendFile(path.join(process.cwd(), 'public/admin/index.html')));
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 SPOTR API server running on http://localhost:${PORT}`);
 });
+
+// Release pooled DB connections cleanly when Railway restarts/redeploys the
+// service (SIGTERM), instead of leaving them to time out on the Postgres side.
+function shutdown(signal: string) {
+  console.log(`${signal} received, shutting down`);
+  server.close(() => {
+    prisma.$disconnect().finally(() => process.exit(0));
+  });
+  setTimeout(() => process.exit(1), 10_000).unref();
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
