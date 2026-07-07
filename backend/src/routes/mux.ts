@@ -53,8 +53,10 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
     // anyone who knows a post's muxUploadId can overwrite its video/thumbnail URLs.
     const secret = process.env.MUX_WEBHOOK_SECRET
     if (secret) {
+      // verifySignature is async (returns Promise<void>) and rejects on a bad/missing
+      // signature — must be awaited or the rejection escapes this try/catch.
       try {
-        mux.webhooks.verifySignature(req.body, req.headers as Record<string, string>, secret)
+        await mux.webhooks.verifySignature(req.body.toString(), req.headers as Record<string, string>, secret)
       } catch {
         return res.status(401).json({ error: 'Invalid webhook signature' })
       }
