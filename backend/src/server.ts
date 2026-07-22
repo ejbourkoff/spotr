@@ -48,6 +48,8 @@ const allowedOrigins = [
   'https://tranquil-exploration-production.up.railway.app',
   'https://thespotrapp.com',
   'https://www.thespotrapp.com',
+  'https://spotrapp.co',
+  'https://www.spotrapp.co',
   'http://localhost:3000',
 ];
 app.use(cors({

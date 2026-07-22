@@ -5,205 +5,478 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SPOTR — The Athlete Network</title>
 
-  <meta name="description" content="The social network where underserved athletes get discovered. Early access for athletes and D2/D3 coaches." />
+  <meta name="description" content="The social recruiting network where underserved athletes get discovered. Post film, build a real recruiting profile, and connect directly with D2, D3, NAIA, and JUCO coaches. Early access open." />
 
   <meta property="og:title" content="SPOTR — The Athlete Network" />
-  <meta property="og:description" content="The social network where underserved athletes get discovered. Early access for athletes and D2/D3 coaches." />
-  <meta property="og:image" content="https://thespotrapp.com/assets/og-image.png" />
-  <meta property="og:url" content="https://thespotrapp.com" />
+  <meta property="og:description" content="Get seen. Get recruited. The recruiting network for athletes the system leaves behind — and the coaches recruiting without a D1 budget." />
+  <meta property="og:image" content="https://spotrapp.co/assets/og-image.png" />
+  <meta property="og:url" content="https://spotrapp.co" />
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="SPOTR — The Athlete Network" />
-  <meta name="twitter:description" content="The social network where underserved athletes get discovered." />
-  <meta name="twitter:image" content="https://thespotrapp.com/assets/og-image.png" />
+  <meta name="twitter:description" content="Get seen. Get recruited." />
+  <meta name="twitter:image" content="https://spotrapp.co/assets/og-image.png" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Hanken+Grotesk:wght@400;600;700;800&display=swap" rel="stylesheet" />
 
+  <link rel="icon" type="image/png" href="assets/spotr-icon.png" />
+  <link rel="apple-touch-icon" href="assets/spotr-icon.png" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
   <!-- NAV -->
   <nav class="nav">
-    <div class="wordmark"><span class="s">S</span>POTR</div>
-    <a href="mailto:evan@thespotrapp.com" class="nav-contact">evan@thespotrapp.com</a>
+    <div class="nav-inner">
+      <a class="wordmark" href="#top">
+        <img src="assets/spotr-icon.png" alt="" />
+        <span><span class="s">S</span>POTR</span>
+      </a>
+      <div class="nav-links">
+        <a href="#athletes">For Athletes</a>
+        <a href="#coaches">For Coaches</a>
+        <a href="#features">Inside the App</a>
+        <a href="#faq">FAQ</a>
+      </div>
+      <a class="nav-cta" href="#waitlist">Join Early Access</a>
+    </div>
   </nav>
 
   <!-- HERO -->
-  <section class="hero">
-    <div class="glow"></div>
-    <div class="hero-inner">
-      <div class="eyebrow">— THE ATHLETE NETWORK —</div>
-      <h1 class="hero-headline">
-        <span class="purple">YOUR HIGHLIGHT<br>REEL</span><br>STARTS HERE.
-      </h1>
-      <p class="hero-sub">
-        A social network built for athletes the current recruiting system leaves behind — and the coaches recruiting without a D1 budget.
-      </p>
-      <a href="#waitlist" class="btn-primary">⚡ REQUEST EARLY ACCESS</a>
-    </div>
-    <div class="scroll-hint">
-      <span>↓</span>
-    </div>
-  </section>
+  <header class="hero" id="top">
+    <div class="container hero-inner">
+      <div>
+        <p class="hero-eyebrow rise d1">The Athlete Network</p>
+        <h1 class="display rise d2">Get seen.<br /><span class="accent">Get recruited.</span></h1>
+        <p class="hero-sub rise d3">
+          SPOTR is the recruiting network for athletes the system leaves behind —
+          and the D2, D3, NAIA, and JUCO coaches recruiting without a D1 budget.
+          Post your film. Build a real profile. Connect directly. No middleman,
+          no $3,000 recruiting service.
+        </p>
+        <div class="hero-ctas rise d4">
+          <button class="btn btn-athlete" data-role-link="athlete">⚡ I'm an Athlete</button>
+          <button class="btn btn-coach" data-role-link="coach">🎯 I'm a Coach</button>
+        </div>
+        <p class="hero-note rise d5">Early access is limited — <strong>athletes and verified coaches only</strong>. Coming soon to the App&nbsp;Store.</p>
+      </div>
 
-  <!-- WHAT IS SPOTR -->
-  <section class="what">
+      <div class="phone-wrap rise d4" aria-hidden="true">
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="pp-top">
+              <div class="pp-avatar">JC</div>
+              <div>
+                <div class="pp-name">Jaylen Carter</div>
+                <div class="pp-meta">PG · Class of 2027 · Westfield HS</div>
+              </div>
+              <div class="pp-badge">★ TRENDING</div>
+            </div>
+            <div class="pp-film">
+              <div class="pp-play">▶</div>
+              <div class="pp-film-label">Junior season highlights · 2:41</div>
+            </div>
+            <div class="pp-stats">
+              <div class="pp-stat"><div class="v">18.4</div><div class="k">PPG</div></div>
+              <div class="pp-stat"><div class="v">6.1</div><div class="k">APG</div></div>
+              <div class="pp-stat"><div class="v">2.3</div><div class="k">SPG</div></div>
+              <div class="pp-stat"><div class="v">6'2"</div><div class="k">HT</div></div>
+            </div>
+            <button class="pp-msg" tabindex="-1">Message Jaylen</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- MARQUEE -->
+  <div class="marquee" aria-hidden="true">
+    <div class="marquee-track">
+      <span>Post your film <b>·</b></span><span>Build your profile <b>·</b></span><span>Get discovered <b>·</b></span><span>No middleman <b>·</b></span><span>Every sport <b>·</b></span><span>D2 D3 NAIA JUCO <b>·</b></span>
+      <span>Post your film <b>·</b></span><span>Build your profile <b>·</b></span><span>Get discovered <b>·</b></span><span>No middleman <b>·</b></span><span>Every sport <b>·</b></span><span>D2 D3 NAIA JUCO <b>·</b></span>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <section class="stats">
     <div class="container">
-      <div class="section-label">— WHAT IS SPOTR —</div>
-      <h2 class="section-title">BUILT FOR BOTH SIDES<br>OF THE RECRUITING GAP.</h2>
-      <div class="cards">
-
-        <div class="card">
-          <div class="card-tag athletes">FOR ATHLETES</div>
-          <h3>Your game deserves<br>an audience.</h3>
-          <p>
-            Post your film. Build a recruiting profile. Get discovered by coaches who are actively searching for players like you — no agent, no recruiting service, no middleman.
-          </p>
-          <ul>
-            <li>Highlight reels &amp; game film</li>
-            <li>Season stats &amp; measurables</li>
-            <li>A profile coaches can actually find</li>
-          </ul>
+      <p class="section-label reveal">The Recruiting Gap</p>
+      <h2 class="display reveal">Talent is everywhere.<br /><span class="accent">Exposure isn't.</span></h2>
+      <div class="stat-grid">
+        <div class="stat reveal">
+          <div class="big">~7%</div>
+          <p>of high school athletes go on to play college sports. The rest aren't less talented — most were simply never seen.</p>
         </div>
-
-        <div class="card card-accent">
-          <div class="card-tag coaches">FOR COACHES</div>
-          <h3>Your program deserves<br>a pipeline.</h3>
-          <p>
-            D2 and D3 coaches grind without the budgets or staff that D1 programs have. SPOTR gives you a direct line to athletes that otherwise wouldn't have a platform.
-          </p>
-          <ul>
-            <li>Browse a feed of athlete highlights</li>
-            <li>Search by sport, position, and grad year</li>
-            <li>Connect without a middleman</li>
-          </ul>
+        <div class="stat reveal">
+          <div class="big">$3K+</div>
+          <p>is what recruiting services charge families for exposure that should be free. SPOTR replaces the middleman with a direct connection.</p>
         </div>
-
+        <div class="stat reveal">
+          <div class="big">1,500+</div>
+          <p>D2, D3, NAIA, and JUCO programs recruit every year on small budgets and lean staffs — they need a better pipeline as much as athletes do.</p>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- COMING SOON BAND -->
-  <section class="band">
-    <div class="band-inner">
-      <span>COMING SOON</span>
-      <span class="dot">·</span>
-      <span>COMING SOON</span>
-      <span class="dot">·</span>
-      <span>COMING SOON</span>
-      <span class="dot">·</span>
-      <span>COMING SOON</span>
-      <span class="dot">·</span>
-      <span>COMING SOON</span>
-      <span class="dot">·</span>
-      <span>COMING SOON</span>
-      <span class="dot">·</span>
-      <span>COMING SOON</span>
-      <span class="dot">·</span>
-      <span>COMING SOON</span>
+  <!-- HOW: ATHLETES -->
+  <section class="how" id="athletes">
+    <div class="container">
+      <div class="how-head reveal">
+        <p class="section-label">For Athletes</p>
+        <h2 class="display">Your game deserves<br /><span class="accent">an audience.</span></h2>
+        <p class="how-sub">Free for athletes. If you can hoop, throw, sprint, or grind — you can be found.</p>
+      </div>
+      <div class="steps">
+        <div class="step reveal">
+          <div class="step-num">1</div>
+          <h3>Build your recruiting profile</h3>
+          <p>Position, grad year, measurables, GPA, school — everything a coach needs to evaluate you, in one link you can send anywhere.</p>
+        </div>
+        <div class="step reveal">
+          <div class="step-num">2</div>
+          <h3>Post film &amp; stats</h3>
+          <p>Upload highlight reels and game film, log season stats, and keep your profile fresh every week. Your grind becomes your feed.</p>
+        </div>
+        <div class="step reveal">
+          <div class="step-num">3</div>
+          <h3>Get discovered</h3>
+          <p>Coaches search by sport, position, grad year, and region — and message you directly in the app. No agent taking a cut.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW: COACHES -->
+  <section class="how" id="coaches">
+    <div class="container">
+      <div class="how-head reveal">
+        <p class="section-label">For Coaches</p>
+        <h2 class="display">Your program deserves<br /><span class="accent">a pipeline.</span></h2>
+        <p class="how-sub">Built for the D2, D3, NAIA, and JUCO staffs doing D1 work without D1 resources.</p>
+      </div>
+      <div class="steps">
+        <div class="step reveal">
+          <div class="step-num">1</div>
+          <h3>Set up your program</h3>
+          <p>Verify your staff role and tell athletes what you're recruiting for — positions, grad years, and what your program is about.</p>
+        </div>
+        <div class="step reveal">
+          <div class="step-num">2</div>
+          <h3>Search like a scout</h3>
+          <p>Filter a national pool by sport, position, class, and region — or let AI-powered search surface athletes who match your exact need.</p>
+        </div>
+        <div class="step reveal">
+          <div class="step-num">3</div>
+          <h3>Connect directly</h3>
+          <p>Watch film, check verified stats, and DM the athlete — same day. No buying lists, no cold-calling counselors.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="features" id="features">
+    <div class="container">
+      <div class="features-head reveal">
+        <p class="section-label">Inside the App</p>
+        <h2 class="display">Everything recruiting needs.<br />Nothing it doesn't.</h2>
+      </div>
+      <div class="feature-grid">
+        <div class="feature reveal">
+          <div class="ic">🎬</div>
+          <h3>Highlight reels</h3>
+          <p>Upload game film and highlights that play instantly — built on pro-grade video infrastructure, not sketchy links.</p>
+        </div>
+        <div class="feature reveal">
+          <div class="ic">📊</div>
+          <h3>Stats &amp; measurables</h3>
+          <p>Season stats, height, weight, 40 time, GPA — logged on your profile where coaches actually look.</p>
+        </div>
+        <div class="feature reveal">
+          <div class="ic">💬</div>
+          <h3>Direct messages</h3>
+          <p>Athletes and coaches talk directly in the app. The DM that changes your life shouldn't cost $3,000.</p>
+        </div>
+        <div class="feature reveal">
+          <div class="ic">🤖</div>
+          <h3>AI athlete search</h3>
+          <p>Coaches describe who they need — "rim-protecting big, class of 2026, Northeast" — and AI surfaces matching athletes.</p>
+        </div>
+        <div class="feature reveal">
+          <div class="ic">📝</div>
+          <h3>Scouting reports</h3>
+          <p>Auto-generated athlete scouting reports pull film, stats, and trajectory into one page a coach can share with staff.</p>
+        </div>
+        <div class="feature reveal">
+          <div class="ic">🏆</div>
+          <h3>Teams &amp; NIL-ready</h3>
+          <p>Team pages for programs and clubs, with NIL profile tools built in for the athletes who are ready for it.</p>
+        </div>
+      </div>
     </div>
   </section>
 
   <!-- WAITLIST -->
   <section class="waitlist" id="waitlist">
     <div class="container">
-      <div class="section-label">— EARLY ACCESS —</div>
-      <h2 class="section-title">WE'RE REACHING OUT TO<br>A SMALL GROUP FIRST.</h2>
-      <p class="waitlist-sub">
-        Athletes and D2/D3 coaches. Limited spots. Tell us about yourself and we'll be in touch.
-      </p>
+      <div class="waitlist-card reveal">
+        <div id="waitlist-forms">
+          <p class="section-label">Early Access</p>
+          <h2 class="display">Claim your spot<br /><span class="accent">before launch.</span></h2>
+          <p class="waitlist-sub">We're onboarding a small first wave of athletes and verified coaches. Tell us who you are and we'll be in touch.</p>
 
-      <form class="form" id="waitlist-form">
-        <div class="form-row">
-          <div class="form-field">
-            <label for="name">FULL NAME</label>
-            <input type="text" id="name" name="name" placeholder="Your name" required autocomplete="name" />
+          <div class="role-toggle" role="tablist" aria-label="Sign up as">
+            <button class="role-btn active" id="tab-athlete" role="tab" aria-selected="true">⚡ Athlete</button>
+            <button class="role-btn" id="tab-coach" role="tab" aria-selected="false">🎯 Coach</button>
           </div>
-          <div class="form-field">
-            <label for="email">EMAIL</label>
-            <input type="email" id="email" name="email" placeholder="your@email.com" required autocomplete="email" />
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-field">
-            <label for="school">SCHOOL / PROGRAM</label>
-            <input type="text" id="school" name="school" placeholder="School or university" required />
-          </div>
-          <div class="form-field">
-            <label for="sport">SPORT</label>
-            <input type="text" id="sport" name="sport" placeholder="Basketball, Football..." required />
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-field">
-            <label for="classYear">CLASS YEAR <span class="optional">(athletes)</span></label>
-            <input type="text" id="classYear" name="classYear" placeholder="2026, 2027..." />
-          </div>
-          <div class="form-field form-field-empty"></div>
-        </div>
-        <button type="submit" class="btn-submit" id="submit-btn">⚡ REQUEST EARLY ACCESS</button>
-      </form>
 
-      <div class="success" id="success" style="display:none">
-        <div class="success-check">✓</div>
-        <h3>YOU'RE ON THE LIST.</h3>
-        <p>We'll reach out soon. We're keeping early access tight so the community stays real.</p>
+          <!-- ATHLETE FORM -->
+          <form id="form-athlete">
+            <div class="form-row">
+              <div class="form-field">
+                <label for="a-name">Full name</label>
+                <input type="text" id="a-name" placeholder="Your name" required autocomplete="name" />
+              </div>
+              <div class="form-field">
+                <label for="a-email">Email</label>
+                <input type="email" id="a-email" placeholder="you@email.com" required autocomplete="email" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-field">
+                <label for="a-school">School</label>
+                <input type="text" id="a-school" placeholder="Your high school or college" required />
+              </div>
+              <div class="form-field">
+                <label for="a-sport">Sport</label>
+                <input type="text" id="a-sport" placeholder="Basketball, Soccer, Track..." required />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-field">
+                <label for="a-year">Grad year</label>
+                <input type="text" id="a-year" placeholder="2026, 2027..." required />
+              </div>
+              <div class="form-field">
+                <label for="a-position">Position <span class="optional">(optional)</span></label>
+                <input type="text" id="a-position" placeholder="PG, Striker, Sprinter..." />
+              </div>
+            </div>
+            <button type="submit" class="btn-submit" id="submit-athlete">⚡ Request Athlete Access</button>
+          </form>
+
+          <!-- COACH FORM -->
+          <form id="form-coach" style="display:none">
+            <div class="form-row">
+              <div class="form-field">
+                <label for="c-name">Full name</label>
+                <input type="text" id="c-name" placeholder="Coach name" required autocomplete="name" />
+              </div>
+              <div class="form-field">
+                <label for="c-email">Email <span class="optional">(school email preferred)</span></label>
+                <input type="email" id="c-email" placeholder="coach@school.edu" required autocomplete="email" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-field">
+                <label for="c-school">School / Program</label>
+                <input type="text" id="c-school" placeholder="Your college or program" required />
+              </div>
+              <div class="form-field">
+                <label for="c-sport">Sport</label>
+                <input type="text" id="c-sport" placeholder="Men's Basketball, W. Soccer..." required />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-field">
+                <label for="c-division">Division</label>
+                <select id="c-division" required>
+                  <option value="" disabled selected>Select division</option>
+                  <option>D1</option>
+                  <option>D2</option>
+                  <option>D3</option>
+                  <option>NAIA</option>
+                  <option>JUCO</option>
+                  <option>Other</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label for="c-title">Role <span class="optional">(optional)</span></label>
+                <input type="text" id="c-title" placeholder="Head Coach, Assistant, Recruiting Coordinator..." />
+              </div>
+            </div>
+            <button type="submit" class="btn-submit" id="submit-coach">🎯 Request Coach Access</button>
+          </form>
+
+          <p class="form-fineprint">Limited spots. We keep early access tight so the community stays real. No spam, ever.</p>
+        </div>
+
+        <div class="success" id="success">
+          <div class="success-check">✓</div>
+          <h3>You're on the list.</h3>
+          <p id="success-msg">We'll reach out soon. We're keeping early access tight so the community stays real.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="faq" id="faq">
+    <div class="container">
+      <div class="faq-head reveal">
+        <p class="section-label">Questions</p>
+        <h2 class="display">Everything else<br />you're wondering.</h2>
+      </div>
+      <div class="faq-list">
+        <details class="faq-item reveal">
+          <summary>When does SPOTR launch?</summary>
+          <p class="faq-a">The iOS app is coming soon to the App Store. Early-access athletes and coaches get in first — that's what the waitlist is for. Join now and you'll be in the first wave we onboard.</p>
+        </details>
+        <details class="faq-item reveal">
+          <summary>What does it cost?</summary>
+          <p class="faq-a">SPOTR is free for athletes. Getting recruited shouldn't depend on whether your family can afford a $3,000 recruiting service. Coach and program tools will have paid tiers later, but early-access coaches get in free.</p>
+        </details>
+        <details class="faq-item reveal">
+          <summary>Who is SPOTR for?</summary>
+          <p class="faq-a">Any high school, JUCO, or transfer athlete who wants to play at the next level — every sport, men's and women's. And on the other side: D2, D3, NAIA, and JUCO coaches and recruiting staff who need a direct pipeline to athletes without D1 budgets. D1 staff are welcome too.</p>
+        </details>
+        <details class="faq-item reveal">
+          <summary>How are coaches verified?</summary>
+          <p class="faq-a">Coach accounts are verified against their program before they can message athletes — school email and staff listing. Athletes should never wonder if the person in their DMs is really a coach.</p>
+        </details>
+        <details class="faq-item reveal">
+          <summary>Is SPOTR a recruiting service?</summary>
+          <p class="faq-a">No — that's the point. Recruiting services charge you to blast emails at coaches. SPOTR is a network: your profile and film live where coaches already search, and they contact you. No middleman, no commission, no gatekeeper.</p>
+        </details>
+        <details class="faq-item reveal">
+          <summary>What about my film and my data?</summary>
+          <p class="faq-a">Your film stays yours. You control what's on your profile and who can message you. We don't sell athlete data — the product is the network, not you.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- FINAL CTA -->
+  <section class="final">
+    <div class="container reveal">
+      <h2 class="display">Don't wait<br /><span class="accent">to be found.</span></h2>
+      <p>The first wave of athletes and coaches is forming now. Claim your spot before launch.</p>
+      <div class="hero-ctas">
+        <button class="btn btn-athlete" data-role-link="athlete">⚡ I'm an Athlete</button>
+        <button class="btn btn-coach" data-role-link="coach">🎯 I'm a Coach</button>
       </div>
     </div>
   </section>
 
   <!-- FOOTER -->
-  <footer class="footer">
-    <div class="wordmark"><span class="s">S</span>POTR</div>
-    <p class="footer-tagline">THE ATHLETE NETWORK</p>
-    <a href="mailto:evan@thespotrapp.com" class="footer-email">evan@thespotrapp.com</a>
-    <p class="footer-copy">© 2026 SPOTR. All rights reserved.</p>
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <img src="assets/spotr-icon.png" alt="" />
+        <span class="wm"><span class="s">S</span>POTR</span>
+      </div>
+      <span>© 2026 SPOTR · An EJB Technologies company</span>
+      <a href="mailto:evan@thespotrapp.com">evan@thespotrapp.com</a>
+    </div>
   </footer>
 
   <script>
-    const form = document.getElementById('waitlist-form');
-    const btn = document.getElementById('submit-btn');
-    const success = document.getElementById('success');
+    // ---- Scroll reveals ----
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (e.isIntersecting) { e.target.classList.add("in-view"); io.unobserve(e.target); }
+      }
+    }, { threshold: 0.12 });
+    document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const originalText = btn.textContent;
-      btn.textContent = 'SENDING...';
+    // ---- Role toggle ----
+    const tabAthlete = document.getElementById("tab-athlete");
+    const tabCoach = document.getElementById("tab-coach");
+    const formAthlete = document.getElementById("form-athlete");
+    const formCoach = document.getElementById("form-coach");
+
+    function setRole(role) {
+      const isAthlete = role === "athlete";
+      tabAthlete.classList.toggle("active", isAthlete);
+      tabCoach.classList.toggle("active", !isAthlete);
+      tabAthlete.setAttribute("aria-selected", isAthlete);
+      tabCoach.setAttribute("aria-selected", !isAthlete);
+      formAthlete.style.display = isAthlete ? "" : "none";
+      formCoach.style.display = isAthlete ? "none" : "";
+    }
+    tabAthlete.addEventListener("click", () => setRole("athlete"));
+    tabCoach.addEventListener("click", () => setRole("coach"));
+
+    // Hero / final CTAs preselect the right form and scroll down
+    document.querySelectorAll("[data-role-link]").forEach((b) =>
+      b.addEventListener("click", () => {
+        setRole(b.dataset.roleLink);
+        document.getElementById("waitlist").scrollIntoView({ behavior: "smooth" });
+      }));
+
+    // ---- Submission (shared live endpoint) ----
+    const API = "/api/waitlist";
+    const successBox = document.getElementById("success");
+    const formsBox = document.getElementById("waitlist-forms");
+    const successMsg = document.getElementById("success-msg");
+
+    async function submitWaitlist(payload, btn, doneMsg) {
+      const original = btn.textContent;
+      btn.textContent = "Sending…";
       btn.disabled = true;
-
-      const payload = {
-        name: document.getElementById('name').value.trim(),
-        email: document.getElementById('email').value.trim(),
-        school: document.getElementById('school').value.trim(),
-        sport: document.getElementById('sport').value.trim(),
-        classYear: document.getElementById('classYear').value.trim() || undefined,
-      };
-
       try {
-        const res = await fetch('https://spotr-production.up.railway.app/api/waitlist', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const res = await fetch(API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-
         if (res.ok) {
-          form.style.display = 'none';
-          success.style.display = 'flex';
+          formsBox.style.display = "none";
+          successBox.style.display = "flex";
+          successMsg.textContent = doneMsg;
         } else {
           const json = await res.json().catch(() => ({}));
-          btn.textContent = json.error || 'Something went wrong. Try again.';
+          btn.textContent = json.error || "Something went wrong. Try again.";
           btn.disabled = false;
+          setTimeout(() => { btn.textContent = original; }, 3500);
         }
       } catch {
-        btn.textContent = 'Check your connection and try again.';
+        btn.textContent = "Check your connection and try again.";
         btn.disabled = false;
-        setTimeout(() => {
-          btn.textContent = originalText;
-        }, 3000);
+        setTimeout(() => { btn.textContent = original; }, 3500);
       }
+    }
+
+    formAthlete.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const position = document.getElementById("a-position").value.trim();
+      submitWaitlist({
+        role: "athlete",
+        name: document.getElementById("a-name").value.trim(),
+        email: document.getElementById("a-email").value.trim(),
+        school: document.getElementById("a-school").value.trim(),
+        sport: document.getElementById("a-sport").value.trim() + (position ? ` (${position})` : ""),
+        classYear: document.getElementById("a-year").value.trim(),
+      }, document.getElementById("submit-athlete"),
+      "We'll reach out as the first athlete wave opens. Keep your film ready.");
+    });
+
+    formCoach.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const division = document.getElementById("c-division").value;
+      const title = document.getElementById("c-title").value.trim();
+      submitWaitlist({
+        role: "coach",
+        name: document.getElementById("c-name").value.trim(),
+        email: document.getElementById("c-email").value.trim(),
+        school: document.getElementById("c-school").value.trim(),
+        sport: `${document.getElementById("c-sport").value.trim()} — ${division} Coach${title ? ` (${title})` : ""}`,
+        classYear: "COACH",
+      }, document.getElementById("submit-coach"),
+      "We'll verify your program and reach out as the coach wave opens.");
     });
   </script>
 

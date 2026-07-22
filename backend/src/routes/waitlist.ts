@@ -37,6 +37,28 @@ async function addToBeehiiv(entry: {
   });
 }
 
+async function addToResend(entry: { name: string; email: string }) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const audienceId = process.env.RESEND_AUDIENCE_ID;
+  if (!apiKey || !audienceId) return false;
+
+  const [firstName, ...rest] = entry.name.split(/\s+/);
+  await fetch(`https://api.resend.com/audiences/${audienceId}/contacts`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      email: entry.email,
+      first_name: firstName || '',
+      last_name: rest.join(' '),
+      unsubscribed: false,
+    }),
+  });
+  return true;
+}
+
 router.post('/', async (req, res) => {
   const { name, email, school, sport, classYear } = req.body as {
     name?: string;
@@ -81,9 +103,14 @@ router.post('/', async (req, res) => {
     return;
   }
 
-  addToBeehiiv({ name: name.trim(), email: email.trim().toLowerCase(), school: school.trim(), sport: sport.trim(), classYear: classYear?.trim() }).catch(
-    (err) => console.error('[waitlist] beehiiv error:', err)
-  );
+  // Mailing list sync: Resend audience when configured, Beehiiv otherwise.
+  addToResend({ name: name.trim(), email: email.trim().toLowerCase() })
+    .then((synced) => {
+      if (!synced) {
+        return addToBeehiiv({ name: name.trim(), email: email.trim().toLowerCase(), school: school.trim(), sport: sport.trim(), classYear: classYear?.trim() });
+      }
+    })
+    .catch((err) => console.error('[waitlist] mailing list sync error:', err));
 
   res.json({ success: true, message: "You're on the list." });
 });
