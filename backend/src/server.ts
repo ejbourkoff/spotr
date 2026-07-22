@@ -50,6 +50,7 @@ const allowedOrigins = [
   'https://www.thespotrapp.com',
   'https://spotrapp.co',
   'https://www.spotrapp.co',
+  'https://spotr-production.up.railway.app',
   'http://localhost:3000',
 ];
 app.use(cors({
